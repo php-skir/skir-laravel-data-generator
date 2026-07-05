@@ -476,6 +476,54 @@ describe("generatePhpFiles", () => {
     expect(userFile?.code).not.toContain("SubscriptionStatus::fromArray($data['subscription_status'])");
   });
 
+  it("normalizes optional generated enum fields through Skir runtime values", () => {
+    const files = generatePhpFiles({
+      config: {
+        namespace: "App\\Skir",
+      },
+      modules: [
+        {
+          path: "user.skir",
+          records: [
+            {
+              recordType: "enum",
+              name: "SubscriptionStatus",
+              fields: [
+                { kind: "field", name: "free", number: 1 },
+              ],
+            },
+            {
+              kind: "struct",
+              name: "User",
+              fields: [
+                {
+                  kind: "field",
+                  name: "subscription_status",
+                  number: 0,
+                  type: {
+                    kind: "optional",
+                    other: {
+                      kind: "record",
+                      name: "SubscriptionStatus",
+                      recordType: "enum",
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const userFile = files.find((file) => file.path === "User.php");
+
+    expect(userFile?.code).toContain("'subscription_status' => $this->subscriptionStatus === null ? null : $this->subscriptionStatus->toSkirValue()");
+    expect(userFile?.code).toContain("subscriptionStatus: $data['subscription_status'] === null ? null : SubscriptionStatus::fromSkirValue($data['subscription_status'])");
+    expect(userFile?.code).not.toContain("$this->subscriptionStatus->toArray()");
+    expect(userFile?.code).not.toContain("SubscriptionStatus::fromArray($data['subscription_status'])");
+  });
+
   it("flattens nested Skir record locations into stable PHP class names", () => {
     const envelopeRecord = {
       kind: "record",
