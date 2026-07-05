@@ -216,9 +216,68 @@ describe("generatePhpFiles", () => {
 
     const userFile = files.find((file) => file.path === "Admin/User.php");
 
-    expect(userFile?.code).toContain("public \\App\\Skir\\Common\\Address $address");
-    expect(userFile?.code).toContain("Field::value('address', 0, \\App\\Skir\\Common\\Address::skirType())");
-    expect(userFile?.code).toContain("address: \\App\\Skir\\Common\\Address::fromArray($data['address'])");
+    expect(userFile?.code).toContain("use App\\Skir\\Common\\Address;");
+    expect(userFile?.code).toContain("public Address $address");
+    expect(userFile?.code).toContain("Field::value('address', 0, Address::skirType())");
+    expect(userFile?.code).toContain("address: Address::fromArray($data['address'])");
+    expect(userFile?.code).not.toContain("\\App\\Skir\\Common\\Address");
+  });
+
+  it("keeps fully qualified record references when an import would collide", () => {
+    const addressRecord = {
+      kind: "record",
+      recordType: "struct" as const,
+      name: "Address",
+      fields: [
+        { kind: "field" as const, name: "city", number: 0, type: { kind: "primitive", primitive: "string" } },
+      ],
+    };
+
+    const files = generatePhpFiles({
+      config: {
+        namespace: "App\\Skir",
+      },
+      recordMap: new Map([
+        [
+          "common/address.skir:0",
+          {
+            kind: "record-location",
+            record: addressRecord,
+            recordAncestors: [addressRecord],
+            modulePath: "common/address.skir",
+          },
+        ],
+      ]),
+      modules: [
+        {
+          path: "admin/address.skir",
+          records: [
+            {
+              kind: "struct",
+              name: "Address",
+              fields: [
+                {
+                  kind: "field",
+                  name: "billing_address",
+                  number: 0,
+                  type: {
+                    kind: "record",
+                    key: "common/address.skir:0",
+                    nameParts: [{ token: { text: "Address" } }],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const addressFile = files.find((file) => file.path === "Admin/Address.php");
+
+    expect(addressFile?.code).not.toContain("use App\\Skir\\Common\\Address;");
+    expect(addressFile?.code).toContain("public \\App\\Skir\\Common\\Address $billingAddress");
+    expect(addressFile?.code).toContain("Field::value('billing_address', 0, \\App\\Skir\\Common\\Address::skirType())");
   });
 
   it("types and normalizes generated record fields", () => {

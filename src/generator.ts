@@ -83,6 +83,12 @@ interface ModuleOutputContext {
   readonly namespace: string;
   readonly pathPrefix: string;
   readonly recordMap?: ReadonlyMap<string, SkirRecordLocation>;
+  readonly imports?: ImportRegistry;
+}
+
+interface ImportRegistry {
+  readonly reservedNames: ReadonlySet<string>;
+  readonly imports: Map<string, string>;
 }
 
 export function generatePhpFiles(input: PhpGeneratorInput): GeneratedFile[] {
@@ -128,6 +134,15 @@ export function generatePhpFiles(input: PhpGeneratorInput): GeneratedFile[] {
 function generateStructFile(context: ModuleOutputContext, record: SkirRecord): GeneratedFile {
   const className = classNameForRecord(record);
   const fields = collectStructFields(record);
+  const runtimeImports = [
+    "LaravelSkir\\Runtime\\DenseJson",
+    "LaravelSkir\\Runtime\\Field",
+    "LaravelSkir\\Runtime\\Type",
+  ];
+  const fileContext = fileOutputContext(context, className, runtimeImports);
+  const constructor = generateConstructor(fields, fileContext);
+  const skirType = generateSkirType(record, fileContext);
+  const fromArray = generateFromArray(className, fields, fileContext);
 
   return {
     path: outputPath(context, `${className}.php`),
@@ -138,19 +153,17 @@ function generateStructFile(context: ModuleOutputContext, record: SkirRecord): G
       "",
       `namespace ${context.namespace};`,
       "",
-      "use LaravelSkir\\Runtime\\DenseJson;",
-      "use LaravelSkir\\Runtime\\Field;",
-      "use LaravelSkir\\Runtime\\Type;",
+      ...generateUseStatements(fileContext, runtimeImports),
       "",
       `final readonly class ${className}`,
       "{",
-      indent(generateConstructor(fields, context)),
+      indent(constructor),
       "",
-      indent(generateSkirType(record, context)),
+      indent(skirType),
       "",
       indent(generateToArray(fields)),
       "",
-      indent(generateFromArray(className, fields, context)),
+      indent(fromArray),
       "",
       indent(generateToDenseJson()),
       "",
@@ -243,6 +256,15 @@ function generateFromDenseJson(className: string): string {
 function generateEnumFile(context: ModuleOutputContext, record: SkirRecord): GeneratedFile {
   const className = classNameForRecord(record);
   const variants = collectDeclarations(record);
+  const runtimeImports = [
+    "LaravelSkir\\Runtime\\DenseJson",
+    "LaravelSkir\\Runtime\\EnumValue",
+    "LaravelSkir\\Runtime\\Type",
+    "LaravelSkir\\Runtime\\Variant",
+  ];
+  const fileContext = fileOutputContext(context, className, runtimeImports);
+  const constructors = generateEnumConstructors(variants, fileContext);
+  const skirType = generateEnumSkirType(record, fileContext);
 
   return {
     path: outputPath(context, `${className}.php`),
@@ -253,18 +275,15 @@ function generateEnumFile(context: ModuleOutputContext, record: SkirRecord): Gen
       "",
       `namespace ${context.namespace};`,
       "",
-      "use LaravelSkir\\Runtime\\DenseJson;",
-      "use LaravelSkir\\Runtime\\EnumValue;",
-      "use LaravelSkir\\Runtime\\Type;",
-      "use LaravelSkir\\Runtime\\Variant;",
+      ...generateUseStatements(fileContext, runtimeImports),
       "",
       `final readonly class ${className}`,
       "{",
       indent("private function __construct(private EnumValue $value) {}"),
       "",
-      indent(generateEnumConstructors(variants, context)),
+      indent(constructors),
       "",
-      indent(generateEnumSkirType(record, context)),
+      indent(skirType),
       "",
       indent(generateEnumAccessors()),
       "",
@@ -359,6 +378,12 @@ function generateEnumFromDenseJson(className: string): string {
 }
 
 function generateMethodsFile(context: ModuleOutputContext, methods: readonly SkirMethod[]): GeneratedFile {
+  const runtimeImports = [
+    "LaravelSkir\\Runtime\\MethodDescriptor",
+  ];
+  const fileContext = fileOutputContext(context, "SkirMethods", runtimeImports);
+  const descriptors = methods.map((method) => generateMethodDescriptor(method, fileContext)).join("\n\n");
+
   return {
     path: outputPath(context, "SkirMethods.php"),
     code: [
@@ -368,13 +393,13 @@ function generateMethodsFile(context: ModuleOutputContext, methods: readonly Ski
       "",
       `namespace ${context.namespace};`,
       "",
-      "use LaravelSkir\\Runtime\\MethodDescriptor;",
+      ...generateUseStatements(fileContext, runtimeImports),
       "",
       "final readonly class SkirMethods",
       "{",
       indent(generateAllMethods(methods)),
       "",
-      indent(methods.map((method) => generateMethodDescriptor(method, context)).join("\n\n")),
+      indent(descriptors),
       "}",
       "",
     ].join("\n"),
@@ -667,7 +692,7 @@ function classNameForRecordReference(context: ModuleOutputContext, recordLocatio
     return className;
   }
 
-  return `\\${recordContext.namespace}\\${className}`;
+  return importedClassName(context, `${recordContext.namespace}\\${className}`);
 }
 
 function outputContextForModule(rootNamespace: string, module: SkirModule, recordMap?: ReadonlyMap<string, SkirRecordLocation>): ModuleOutputContext {
@@ -704,6 +729,60 @@ function outputPath(context: ModuleOutputContext, fileName: string): string {
   }
 
   return `${context.pathPrefix}/${fileName}`;
+}
+
+function fileOutputContext(context: ModuleOutputContext, className: string, runtimeImports: readonly string[]): ModuleOutputContext {
+  const reservedNames = new Set([
+    className,
+    ...runtimeImports.map((importName) => shortClassName(importName)),
+  ]);
+
+  return {
+    ...context,
+    imports: {
+      reservedNames,
+      imports: new Map(),
+    },
+  };
+}
+
+function generateUseStatements(context: ModuleOutputContext, runtimeImports: readonly string[]): string[] {
+  const generatedImports = Array.from(context.imports?.imports.values() ?? []).sort();
+
+  return [
+    ...runtimeImports,
+    ...generatedImports,
+  ].map((importName) => `use ${importName};`);
+}
+
+function importedClassName(context: ModuleOutputContext, fullyQualifiedClassName: string): string {
+  const shortName = shortClassName(fullyQualifiedClassName);
+
+  if (context.imports === undefined) {
+    return `\\${fullyQualifiedClassName}`;
+  }
+
+  if (context.imports.reservedNames.has(shortName)) {
+    return `\\${fullyQualifiedClassName}`;
+  }
+
+  const existingImport = context.imports.imports.get(shortName);
+
+  if (existingImport === undefined) {
+    context.imports.imports.set(shortName, fullyQualifiedClassName);
+
+    return shortName;
+  }
+
+  if (existingImport === fullyQualifiedClassName) {
+    return shortName;
+  }
+
+  return `\\${fullyQualifiedClassName}`;
+}
+
+function shortClassName(fullyQualifiedClassName: string): string {
+  return fullyQualifiedClassName.split("\\").at(-1) ?? fullyQualifiedClassName;
 }
 
 function classNameForRecordLocation(record: SkirRecordLocation): string {

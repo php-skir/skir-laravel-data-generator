@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -164,6 +164,11 @@ if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
         expect(existsSync(generatedFile)).toBe(true);
         execFileSync("php", ["-l", generatedFile], { stdio: "pipe" });
       }
+
+      const userCode = readFileSync(join(generatedPath, "Admin", "User.php"), "utf8");
+
+      expect(userCode).toContain("use App\\Skir\\Common\\Address;");
+      expect(userCode).not.toContain("\\App\\Skir\\Common\\Address");
 
       execFileSync("composer", ["install", "--no-interaction", "--no-progress"], {
         cwd: projectPath,
