@@ -4,3 +4,49 @@ Generates framework-agnostic PHP data objects for Skir schemas.
 
 Generated PHP code uses `laravel-skir/runtime` for dense JSON serialization.
 
+## Installation
+
+```bash
+npm install --save-dev skir-php-generator
+composer require laravel-skir/runtime
+```
+
+## Usage with Skir
+
+Add the generator to `skir.yml`:
+
+```yaml
+generators:
+  php:
+    package: skir-php-generator
+    output: generated/php
+    config:
+      namespace: App\Skir
+```
+
+Then run the Skir generator command for your project.
+
+## Generated PHP
+
+The generator emits readonly PHP classes for Skir structs and enum wrapper classes for Skir enums. Generated classes expose:
+
+- `skirType()` for runtime type descriptors.
+- `toArray()` and `fromArray()` for PHP array conversion.
+- `toDenseJson()` and `fromDenseJson()` for dense JSON payloads.
+- `toSkirValue()` and `fromSkirValue()` on generated enum classes.
+
+SkirRPC methods are emitted in `SkirMethods.php` as `MethodDescriptor` instances.
+
+## Namespaces and modules
+
+The configured namespace defaults to `App\Skir`. Module directories become PHP subnamespaces and output directories:
+
+```text
+admin/users.skir -> App\Skir\Admin
+```
+
+When two generated records would otherwise use the same PHP class name in the same namespace, the generator prefixes the class with the module basename to keep output deterministic.
+
+## Current scope
+
+This package only generates framework-agnostic PHP DTOs and method descriptors. Laravel-specific data objects, server routing, and client generation live in separate packages.
