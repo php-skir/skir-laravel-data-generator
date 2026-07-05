@@ -2,13 +2,19 @@
 
 Generates Spatie Laravel Data objects for Skir schemas.
 
-Generated PHP code uses `spatie/laravel-data` for DTO creation and validation, and `laravel-skir/runtime` for dense JSON serialization.
+Generated PHP code uses `spatie/laravel-data` for DTO creation and validation, and `laravel-skir/runtime` for dense JSON serialization. If you use generated RPC clients, install `laravel-skir/client` as well.
 
 ## Installation
 
 ```bash
 npm install --save-dev skir-laravel-data-generator
 composer require laravel-skir/runtime spatie/laravel-data
+```
+
+For generated typed RPC clients:
+
+```bash
+composer require laravel-skir/client
 ```
 
 ## Usage with Skir
@@ -37,6 +43,18 @@ The generator emits Laravel Data classes for Skir structs and enum wrapper class
 
 SkirRPC methods are emitted in `SkirMethods.php` as `MethodDescriptor` instances.
 
+When a module defines SkirRPC methods, the generator also emits `SkirRpcClient.php`. It wraps `LaravelSkir\Client\SkirClient` and exposes typed methods:
+
+```php
+use App\Skir\Admin\SkirRpcClient;
+use LaravelSkir\Client\SkirClient as TransportSkirClient;
+
+$client = new SkirRpcClient(new TransportSkirClient('https://example.com/skir'));
+$user = $client->getUser($requestData);
+```
+
+Responses are hydrated through `makeFromSkirPayload()`, so Laravel Data validation is still applied to returned struct objects.
+
 ## Namespaces and modules
 
 The configured namespace defaults to `App\Skir`. Module directories become PHP subnamespaces and output directories:
@@ -49,4 +67,4 @@ When two generated records would otherwise use the same PHP class name in the sa
 
 ## Current scope
 
-This package only generates Laravel Data DTOs and method descriptors. Server routing and client generation live in separate packages.
+This package generates Laravel Data DTOs, method descriptors, and typed client adapters. Server routing lives in a separate package.

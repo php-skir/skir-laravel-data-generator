@@ -12,6 +12,7 @@ describe("skir CLI integration", () => {
     const skirSourcePath = join(projectPath, "skir-src");
     const adminSkirSourcePath = join(skirSourcePath, "admin");
     const commonSkirSourcePath = join(skirSourcePath, "common");
+    const stubClientPath = join(projectPath, "stub-client", "LaravelSkir", "Client");
     const generatedPath = join(projectPath, "generated", "skirout");
     const runtimePath = process.env.SKIR_RUNTIME_PATH ?? resolve("../runtime");
     const generatorPath = resolve("dist/index.js");
@@ -24,6 +25,7 @@ describe("skir CLI integration", () => {
     rmSync(generatedPath, { recursive: true, force: true });
     mkdirSync(adminSkirSourcePath, { recursive: true });
     mkdirSync(commonSkirSourcePath, { recursive: true });
+    mkdirSync(stubClientPath, { recursive: true });
 
     writeFileSync(
       join(projectPath, "skir.yml"),
@@ -108,6 +110,7 @@ describe("skir CLI integration", () => {
           autoload: {
             "psr-4": {
               "App\\Skir\\": "generated/skirout/",
+              "LaravelSkir\\Client\\": "stub-client/LaravelSkir/Client/",
             },
           },
           config: {
@@ -119,6 +122,30 @@ describe("skir CLI integration", () => {
         null,
         2,
       ),
+    );
+
+    writeFileSync(
+      join(stubClientPath, "SkirClient.php"),
+      `<?php
+
+declare(strict_types=1);
+
+namespace LaravelSkir\\Client;
+
+use LaravelSkir\\Runtime\\MethodDescriptor;
+
+final class SkirClient
+{
+    public function invoke(MethodDescriptor $descriptor, mixed $request): mixed
+    {
+        if ($descriptor->name !== 'GetUser') {
+            throw new \\RuntimeException('Unexpected method descriptor.');
+        }
+
+        return $request;
+    }
+}
+`,
     );
 
     writeFileSync(
@@ -206,9 +233,11 @@ $container->instance('validator', $validator);
 $container->alias('validator', \\Illuminate\\Contracts\\Validation\\Factory::class);
 
 use App\\Skir\\Admin\\SkirMethods;
+use App\\Skir\\Admin\\SkirRpcClient;
 use App\\Skir\\Admin\\SubscriptionStatusData;
 use App\\Skir\\Admin\\UsersUserData;
 use App\\Skir\\Common\\AddressData;
+use LaravelSkir\\Client\\SkirClient as TransportSkirClient;
 
 $user = new UsersUserData(
     userId: 400,
@@ -253,6 +282,13 @@ $method = SkirMethods::getUser();
 if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
     throw new RuntimeException('Unexpected method descriptor.');
 }
+
+$rpcClient = new SkirRpcClient(new TransportSkirClient());
+$rpcUser = $rpcClient->getUser($user);
+
+if (! $rpcUser instanceof UsersUserData || $rpcUser->name !== 'John Doe') {
+    throw new RuntimeException('Unexpected generated client response.');
+}
 `,
     );
 
@@ -263,11 +299,12 @@ if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
 
     const generatedFiles = [
       join(generatedPath, "Admin", "UsersUserData.php"),
-      join(generatedPath, "Admin", "ProfilesUserData.php"),
-      join(generatedPath, "Admin", "SubscriptionStatusData.php"),
-      join(generatedPath, "Admin", "SkirMethods.php"),
-      join(generatedPath, "Common", "AddressData.php"),
-    ];
+        join(generatedPath, "Admin", "ProfilesUserData.php"),
+        join(generatedPath, "Admin", "SubscriptionStatusData.php"),
+        join(generatedPath, "Admin", "SkirMethods.php"),
+        join(generatedPath, "Admin", "SkirRpcClient.php"),
+        join(generatedPath, "Common", "AddressData.php"),
+      ];
 
     for (const generatedFile of generatedFiles) {
       expect(existsSync(generatedFile)).toBe(true);
@@ -276,15 +313,22 @@ if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
 
     expect(existsSync(join(generatedPath, "Admin", "UserData.php"))).toBe(false);
 
-    const userCode = readFileSync(join(generatedPath, "Admin", "UsersUserData.php"), "utf8");
-    const methodsCode = readFileSync(join(generatedPath, "Admin", "SkirMethods.php"), "utf8");
+      const userCode = readFileSync(join(generatedPath, "Admin", "UsersUserData.php"), "utf8");
+      const methodsCode = readFileSync(join(generatedPath, "Admin", "SkirMethods.php"), "utf8");
+      const clientCode = readFileSync(join(generatedPath, "Admin", "SkirRpcClient.php"), "utf8");
 
-    expect(userCode).toContain("use App\\Skir\\Common\\AddressData;");
-    expect(userCode).not.toContain("\\App\\Skir\\Common\\AddressData");
-    expect(methodsCode).toContain("requestType: UsersUserData::skirType()");
-    expect(methodsCode).toContain("responseType: UsersUserData::skirType()");
+      expect(userCode).toContain("use App\\Skir\\Common\\AddressData;");
+      expect(userCode).not.toContain("\\App\\Skir\\Common\\AddressData");
+      expect(methodsCode).toContain("requestType: UsersUserData::skirType()");
+      expect(methodsCode).toContain("responseType: UsersUserData::skirType()");
+      expect(clientCode).toContain("public function getUser(UsersUserData $request): UsersUserData");
 
-    if (! existsSync(join(projectPath, "vendor", "autoload.php"))) {
+    if (existsSync(join(projectPath, "vendor", "autoload.php"))) {
+      execFileSync("composer", ["dump-autoload", "--no-interaction"], {
+        cwd: projectPath,
+        stdio: "pipe",
+      });
+    } else {
       execFileSync("composer", ["install", "--no-interaction", "--no-progress"], {
         cwd: projectPath,
         stdio: "pipe",

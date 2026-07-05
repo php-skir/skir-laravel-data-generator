@@ -136,7 +136,10 @@ export function generateLaravelDataFiles(input: PhpGeneratorInput): GeneratedFil
 
   return [
     ...recordFiles,
-    ...Array.from(methodGroups.values()).map((group) => generateMethodsFile(group.context, group.methods)),
+    ...Array.from(methodGroups.values()).flatMap((group) => [
+      generateMethodsFile(group.context, group.methods),
+      generateClientFile(group.context, group.methods),
+    ]),
   ];
 }
 
@@ -542,6 +545,60 @@ function generateMethodDescriptor(method: SkirMethod, context: ModuleOutputConte
   ].join("\n");
 }
 
+function generateClientFile(context: ModuleOutputContext, methods: readonly SkirMethod[]): GeneratedFile {
+  const runtimeImports = [
+    "LaravelSkir\\Client\\SkirClient",
+  ];
+  const fileContext = fileOutputContext(context, "SkirRpcClient", runtimeImports);
+  const clientMethods = methods.map((method) => generateClientMethod(method, fileContext)).join("\n\n");
+
+  return {
+    path: outputPath(context, "SkirRpcClient.php"),
+    code: [
+      "<?php",
+      "",
+      "declare(strict_types=1);",
+      "",
+      `namespace ${context.namespace};`,
+      "",
+      ...generateUseStatements(fileContext, runtimeImports),
+      "",
+      "final readonly class SkirRpcClient",
+      "{",
+      indent(generateClientConstructor()),
+      "",
+      indent(clientMethods),
+      "}",
+      "",
+    ].join("\n"),
+  };
+}
+
+function generateClientConstructor(): string {
+  return [
+    "public function __construct(",
+    "    private SkirClient $client,",
+    ") {}",
+  ].join("\n");
+}
+
+function generateClientMethod(method: SkirMethod, context: ModuleOutputContext): string {
+  const methodName = toPropertyName(tokenText(method.name));
+  const requestType = method.requestType ?? "string";
+  const responseType = method.responseType ?? "string";
+  const request = valueToArrayExpression(requestType, "$request", context);
+  const response = clientResponseExpression(responseType, "$response", context);
+
+  return [
+    `public function ${methodName}(${phpType(requestType, context)} $request): ${phpType(responseType, context)}`,
+    "{",
+    `    $response = $this->client->invoke(SkirMethods::${methodName}(), ${request});`,
+    "",
+    `    return ${response};`,
+    "}",
+  ].join("\n");
+}
+
 interface StructField {
   readonly name: string;
   readonly number: number;
@@ -837,6 +894,38 @@ function valueFromArrayExpression(type: SkirType, expression: string, context: M
 
     if (typeKind(itemType) === "record" || typeKind(itemType) === "optional" || typeKind(itemType) === "array") {
       return `array_map(fn (mixed $item): mixed => ${valueFromArrayExpression(itemType, "$item", context)}, ${expression})`;
+    }
+  }
+
+  return expression;
+}
+
+function clientResponseExpression(type: SkirType, expression: string, context: ModuleOutputContext): string {
+  const kind = typeKind(type);
+
+  if (kind === "record") {
+    if (isEnumRecordReference(type, context)) {
+      return `${recordTypeClassName(type, context)}::fromSkirValue(${expression})`;
+    }
+
+    return `${recordTypeClassName(type, context)}::makeFromSkirPayload(${expression})`;
+  }
+
+  if (kind === "optional") {
+    const innerType = optionalInnerType(type);
+
+    if (typeKind(innerType) === "record" || typeKind(innerType) === "array") {
+      return `${expression} === null ? null : ${clientResponseExpression(innerType, expression, context)}`;
+    }
+
+    return expression;
+  }
+
+  if (kind === "array") {
+    const itemType = arrayItemType(type);
+
+    if (typeKind(itemType) === "record" || typeKind(itemType) === "optional" || typeKind(itemType) === "array") {
+      return `array_map(fn (mixed $item): mixed => ${clientResponseExpression(itemType, "$item", context)}, ${expression})`;
     }
   }
 
