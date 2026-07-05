@@ -59,21 +59,36 @@ $user = $client->getUser($requestData);
 
 Responses are hydrated through `makeFromSkirPayload()`, so Laravel Data validation is still applied to returned struct objects.
 
-For servers, the generator emits `SkirProcedures.php` and `SkirProcedureProvider.php`. Implement the generated interface and register the generated provider on a Laravel Skir endpoint:
+For servers, the generator emits `AbstractSkirProcedures.php`, `SkirProcedures.php`, and `SkirProcedureProvider.php`.
+
+The recommended Laravel server path is to extend the generated abstract class and register your concrete procedure class directly:
 
 ```php
-use App\Skir\Admin\SkirProcedureProvider;
-use App\Skir\Admin\SkirProcedures;
+use App\Skir\Admin\AbstractSkirProcedures;
+use App\Skir\Admin\GetUserRequestData;
+use App\Skir\Admin\UserData;
 use Illuminate\Support\Facades\Route;
+use LaravelSkir\Server\RequestContext;
 
-$this->app->bind(SkirProcedures::class, AdminProcedures::class);
+final class AdminProcedures extends AbstractSkirProcedures
+{
+    public function getUser(GetUserRequestData $request, RequestContext $context): UserData
+    {
+        return new UserData(
+            userId: $request->userId,
+            name: 'Maxim',
+        );
+    }
+}
 
 Route::skirRpc('/api/skir', [
-    SkirProcedureProvider::class,
+    AdminProcedures::class,
 ]);
 ```
 
-Incoming struct requests are hydrated with `makeFromSkirPayload()`, so Laravel Data validation also runs before your procedure implementation is called.
+`AbstractSkirProcedures` registers generated method descriptors, hydrates incoming struct requests with `makeFromSkirPayload()`, calls your typed methods, and converts returned data objects with `toSkirArray()`. Laravel Data validation runs before your procedure implementation is called.
+
+The interface/provider pair remains available if you prefer binding `SkirProcedures` in the container and registering `SkirProcedureProvider`.
 
 ## Namespaces and modules
 

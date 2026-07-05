@@ -234,6 +234,7 @@ describe("generateLaravelDataFiles", () => {
 
     const proceduresFile = files.find((file) => file.path === "SkirProcedures.php");
     const providerFile = files.find((file) => file.path === "SkirProcedureProvider.php");
+    const abstractProceduresFile = files.find((file) => file.path === "AbstractSkirProcedures.php");
 
     expect(proceduresFile?.code).toContain("interface SkirProcedures");
     expect(proceduresFile?.code).toContain("public function getUser(GetUserRequestData $request, RequestContext $context): UserData;");
@@ -243,6 +244,11 @@ describe("generateLaravelDataFiles", () => {
     expect(providerFile?.code).toContain("$server->addMethod(SkirMethods::getUser(), function (mixed $request, RequestContext $context): mixed {");
     expect(providerFile?.code).toContain("$response = $this->procedures->getUser(GetUserRequestData::makeFromSkirPayload($request), $context);");
     expect(providerFile?.code).toContain("return $response->toSkirArray();");
+    expect(abstractProceduresFile?.code).toContain("abstract class AbstractSkirProcedures implements ProcedureProvider");
+    expect(abstractProceduresFile?.code).toContain("abstract public function getUser(GetUserRequestData $request, RequestContext $context): UserData;");
+    expect(abstractProceduresFile?.code).toContain("$server->addMethod(SkirMethods::getUser(), function (mixed $request, RequestContext $context): mixed {");
+    expect(abstractProceduresFile?.code).toContain("$response = $this->getUser(GetUserRequestData::makeFromSkirPayload($request), $context);");
+    expect(abstractProceduresFile?.code).toContain("return $response->toSkirArray();");
   });
 
   it("uses module directories as PHP subnamespaces and output directories", () => {
@@ -288,6 +294,7 @@ describe("generateLaravelDataFiles", () => {
     const clientFile = files.find((file) => file.path === "Admin/SkirRpcClient.php");
     const proceduresFile = files.find((file) => file.path === "Admin/SkirProcedures.php");
     const providerFile = files.find((file) => file.path === "Admin/SkirProcedureProvider.php");
+    const abstractProceduresFile = files.find((file) => file.path === "Admin/AbstractSkirProcedures.php");
 
     expect(userFile?.code).toContain("namespace App\\Skir\\Admin;");
     expect(requestFile?.code).toContain("namespace App\\Skir\\Admin;");
@@ -295,6 +302,7 @@ describe("generateLaravelDataFiles", () => {
     expect(clientFile?.code).toContain("namespace App\\Skir\\Admin;");
     expect(proceduresFile?.code).toContain("namespace App\\Skir\\Admin;");
     expect(providerFile?.code).toContain("namespace App\\Skir\\Admin;");
+    expect(abstractProceduresFile?.code).toContain("namespace App\\Skir\\Admin;");
     expect(methodsFile?.code).toContain("requestType: GetUserRequestData::skirType()");
     expect(methodsFile?.code).toContain("responseType: UserData::skirType()");
     expect(clientFile?.code).toContain("public function getUser(GetUserRequestData $request): UserData");

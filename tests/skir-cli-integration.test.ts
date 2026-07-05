@@ -298,6 +298,7 @@ if (! $rpcUser instanceof UsersUserData || $rpcUser->name !== 'John Doe') {
     });
 
     const generatedFiles = [
+      join(generatedPath, "Admin", "AbstractSkirProcedures.php"),
       join(generatedPath, "Admin", "UsersUserData.php"),
         join(generatedPath, "Admin", "ProfilesUserData.php"),
         join(generatedPath, "Admin", "SubscriptionStatusData.php"),

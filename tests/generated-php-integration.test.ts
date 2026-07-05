@@ -297,6 +297,7 @@ if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
     });
 
     expect(files.map((file) => file.path).sort()).toEqual([
+      "AbstractSkirProcedures.php",
       "AddressData.php",
       "HealthCheckRequestData.php",
       "SkirMethods.php",
