@@ -152,6 +152,14 @@ function generateStructFile(context: ModuleOutputContext, record: SkirRecord): G
   const constructor = generateConstructor(fields, fileContext);
   const skirType = generateSkirType(record, fileContext);
   const fromArray = generateFromArray(className, fields, fileContext);
+  const classMembers = [
+    constructor,
+    skirType,
+    generateToArray(fields, fileContext),
+    fromArray,
+    generateToDenseJson(),
+    generateFromDenseJson(className),
+  ].filter((member): member is string => member !== null);
 
   return {
     path: outputPath(context, `${className}.php`),
@@ -166,26 +174,18 @@ function generateStructFile(context: ModuleOutputContext, record: SkirRecord): G
       "",
       `final readonly class ${className}`,
       "{",
-      indent(constructor),
-      "",
-      indent(skirType),
-      "",
-      indent(generateToArray(fields, fileContext)),
-      "",
-      indent(fromArray),
-      "",
-      indent(generateToDenseJson()),
-      "",
-      indent(generateFromDenseJson(className)),
+      ...classMembers.flatMap((member, index) => index === 0
+        ? [indent(member)]
+        : ["", indent(member)]),
       "}",
       "",
     ].join("\n"),
   };
 }
 
-function generateConstructor(fields: readonly TypedStructField[], context: ModuleOutputContext): string {
+function generateConstructor(fields: readonly TypedStructField[], context: ModuleOutputContext): string | null {
   if (fields.length === 0) {
-    return "private function __construct() {}";
+    return null;
   }
 
   return [

@@ -66,6 +66,11 @@ describe("generated PHP", () => {
             },
             {
               kind: "struct",
+              name: "HealthCheckRequest",
+              fields: [],
+            },
+            {
+              kind: "struct",
               name: "User",
               fields: [
                 { kind: "field", name: "user_id", number: 0, type: { kind: "int32" } },
@@ -120,7 +125,14 @@ require __DIR__.'/vendor/autoload.php';
 use App\\Skir\\SubscriptionStatus;
 use App\\Skir\\SkirMethods;
 use App\\Skir\\Address;
+use App\\Skir\\HealthCheckRequest;
 use App\\Skir\\User;
+
+$healthCheckRequest = new HealthCheckRequest();
+
+if ($healthCheckRequest->toDenseJson() !== '[]') {
+    throw new RuntimeException('Unexpected health check dense JSON: '.$healthCheckRequest->toDenseJson());
+}
 
 $user = new User(
     userId: 400,
@@ -203,6 +215,6 @@ if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
       rmSync(projectPath, { recursive: true, force: true });
     }
 
-    expect(files.map((file) => file.path).sort()).toEqual(["Address.php", "SkirMethods.php", "SubscriptionStatus.php", "User.php"]);
+    expect(files.map((file) => file.path).sort()).toEqual(["Address.php", "HealthCheckRequest.php", "SkirMethods.php", "SubscriptionStatus.php", "User.php"]);
   }, 60_000);
 });

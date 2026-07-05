@@ -36,6 +36,29 @@ describe("generatePhpFiles", () => {
     expect(files[0]?.code).toContain("DenseJson::toJson(self::skirType(), $this->toArray())");
   });
 
+  it("generates instantiable PHP classes for empty Skir structs", () => {
+    const files = generatePhpFiles({
+      config: {
+        namespace: "App\\Skir",
+      },
+      modules: [
+        {
+          path: "health.skir",
+          records: [
+            {
+              kind: "struct",
+              name: "HealthCheckRequest",
+              fields: [],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(files[0]?.code).toContain("final readonly class HealthCheckRequest");
+    expect(files[0]?.code).not.toContain("__construct");
+  });
+
   it("generates a PHP readonly class for a Skir enum", () => {
     const files = generatePhpFiles({
       config: {
