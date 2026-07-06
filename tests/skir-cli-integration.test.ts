@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 
 describe("skir CLI integration", () => {
   it("generates executable PHP from a real .skir fixture", () => {
-    const projectPath = join(tmpdir(), "skir-laravel-data-generator-cli-fixture");
+    const projectPath = mkdtempSync(join(tmpdir(), "skir-laravel-data-generator-cli-"));
     const skirSourcePath = join(projectPath, "skir-src");
     const adminSkirSourcePath = join(skirSourcePath, "admin");
     const commonSkirSourcePath = join(skirSourcePath, "common");
@@ -300,14 +300,15 @@ if (! $rpcUser instanceof UsersUserData || $rpcUser->name !== 'John Doe') {
     const generatedFiles = [
       join(generatedPath, "Admin", "AbstractSkirProcedures.php"),
       join(generatedPath, "Admin", "UsersUserData.php"),
-        join(generatedPath, "Admin", "ProfilesUserData.php"),
-        join(generatedPath, "Admin", "SubscriptionStatusData.php"),
-        join(generatedPath, "Admin", "SkirMethods.php"),
-        join(generatedPath, "Admin", "SkirProcedureProvider.php"),
-        join(generatedPath, "Admin", "SkirProcedures.php"),
-        join(generatedPath, "Admin", "SkirRpcClient.php"),
-        join(generatedPath, "Common", "AddressData.php"),
-      ];
+      join(generatedPath, "Admin", "ProfilesUserData.php"),
+      join(generatedPath, "Admin", "SubscriptionStatusData.php"),
+      join(generatedPath, "Admin", "AdminSkirMethod.php"),
+      join(generatedPath, "Admin", "SkirMethods.php"),
+      join(generatedPath, "Admin", "SkirProcedureProvider.php"),
+      join(generatedPath, "Admin", "SkirProcedures.php"),
+      join(generatedPath, "Admin", "SkirRpcClient.php"),
+      join(generatedPath, "Common", "AddressData.php"),
+    ];
 
     for (const generatedFile of generatedFiles) {
       expect(existsSync(generatedFile)).toBe(true);
@@ -316,17 +317,17 @@ if (! $rpcUser instanceof UsersUserData || $rpcUser->name !== 'John Doe') {
 
     expect(existsSync(join(generatedPath, "Admin", "UserData.php"))).toBe(false);
 
-      const userCode = readFileSync(join(generatedPath, "Admin", "UsersUserData.php"), "utf8");
-      const methodsCode = readFileSync(join(generatedPath, "Admin", "SkirMethods.php"), "utf8");
-      const providerCode = readFileSync(join(generatedPath, "Admin", "SkirProcedureProvider.php"), "utf8");
-      const clientCode = readFileSync(join(generatedPath, "Admin", "SkirRpcClient.php"), "utf8");
+    const userCode = readFileSync(join(generatedPath, "Admin", "UsersUserData.php"), "utf8");
+    const methodsCode = readFileSync(join(generatedPath, "Admin", "SkirMethods.php"), "utf8");
+    const providerCode = readFileSync(join(generatedPath, "Admin", "SkirProcedureProvider.php"), "utf8");
+    const clientCode = readFileSync(join(generatedPath, "Admin", "SkirRpcClient.php"), "utf8");
 
-      expect(userCode).toContain("use App\\Skir\\Common\\AddressData;");
-      expect(userCode).not.toContain("\\App\\Skir\\Common\\AddressData");
-      expect(methodsCode).toContain("requestType: UsersUserData::skirType()");
-      expect(methodsCode).toContain("responseType: UsersUserData::skirType()");
-      expect(providerCode).toContain("namespace App\\Skir\\Admin;");
-      expect(clientCode).toContain("public function getUser(UsersUserData $request): UsersUserData");
+    expect(userCode).toContain("use App\\Skir\\Common\\AddressData;");
+    expect(userCode).not.toContain("\\App\\Skir\\Common\\AddressData");
+    expect(methodsCode).toContain("requestType: UsersUserData::skirType()");
+    expect(methodsCode).toContain("responseType: UsersUserData::skirType()");
+    expect(providerCode).toContain("namespace App\\Skir\\Admin;");
+    expect(clientCode).toContain("public function getUser(UsersUserData $request): UsersUserData");
 
     if (existsSync(join(projectPath, "vendor", "autoload.php"))) {
       execFileSync("composer", ["dump-autoload", "--no-interaction"], {

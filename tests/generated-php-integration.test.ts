@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
@@ -9,11 +9,10 @@ import { generateLaravelDataFiles } from "../src/generator.js";
 
 describe("generated PHP", () => {
   it("round-trips dense JSON through laravel-skir/runtime", () => {
-    const projectPath = join(tmpdir(), "skir-laravel-data-generator-fixture");
+    const projectPath = mkdtempSync(join(tmpdir(), "skir-laravel-data-generator-"));
     const sourcePath = join(projectPath, "src");
     const runtimePath = process.env.SKIR_RUNTIME_PATH ?? resolve("../runtime");
 
-    rmSync(sourcePath, { recursive: true, force: true });
     mkdirSync(sourcePath, { recursive: true });
 
     writeFileSync(
@@ -300,6 +299,7 @@ if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
       "AbstractSkirProcedures.php",
       "AddressData.php",
       "HealthCheckRequestData.php",
+      "SkirMethod.php",
       "SkirMethods.php",
       "SkirProcedureProvider.php",
       "SkirProcedures.php",

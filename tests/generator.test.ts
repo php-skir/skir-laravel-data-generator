@@ -235,18 +235,22 @@ describe("generateLaravelDataFiles", () => {
     const proceduresFile = files.find((file) => file.path === "SkirProcedures.php");
     const providerFile = files.find((file) => file.path === "SkirProcedureProvider.php");
     const abstractProceduresFile = files.find((file) => file.path === "AbstractSkirProcedures.php");
+    const methodEnumFile = files.find((file) => file.path === "SkirMethod.php");
 
+    expect(methodEnumFile?.code).toContain("enum SkirMethod implements SkirMethodReference");
+    expect(methodEnumFile?.code).toContain("case GetUser;");
+    expect(methodEnumFile?.code).toContain("self::GetUser => SkirMethods::getUser(),");
     expect(proceduresFile?.code).toContain("interface SkirProcedures");
-    expect(proceduresFile?.code).toContain("public function getUser(GetUserRequestData $request, RequestContext $context): UserData;");
+    expect(proceduresFile?.code).toContain("public function getUser(GetUserRequestData $request, SkirContext $context): UserData;");
     expect(providerFile?.code).toContain("use LaravelSkir\\Server\\ProcedureProvider;");
     expect(providerFile?.code).toContain("final readonly class SkirProcedureProvider implements ProcedureProvider");
     expect(providerFile?.code).toContain("private SkirProcedures $procedures,");
-    expect(providerFile?.code).toContain("$server->addMethod(SkirMethods::getUser(), function (mixed $request, RequestContext $context): mixed {");
+    expect(providerFile?.code).toContain("$server->addMethod(SkirMethods::getUser(), function (mixed $request, SkirContext $context): mixed {");
     expect(providerFile?.code).toContain("$response = $this->procedures->getUser(GetUserRequestData::makeFromSkirPayload($request), $context);");
     expect(providerFile?.code).toContain("return $response->toSkirArray();");
     expect(abstractProceduresFile?.code).toContain("abstract class AbstractSkirProcedures implements ProcedureProvider");
-    expect(abstractProceduresFile?.code).toContain("abstract public function getUser(GetUserRequestData $request, RequestContext $context): UserData;");
-    expect(abstractProceduresFile?.code).toContain("$server->addMethod(SkirMethods::getUser(), function (mixed $request, RequestContext $context): mixed {");
+    expect(abstractProceduresFile?.code).toContain("abstract public function getUser(GetUserRequestData $request, SkirContext $context): UserData;");
+    expect(abstractProceduresFile?.code).toContain("$server->addMethod(SkirMethods::getUser(), function (mixed $request, SkirContext $context): mixed {");
     expect(abstractProceduresFile?.code).toContain("$response = $this->getUser(GetUserRequestData::makeFromSkirPayload($request), $context);");
     expect(abstractProceduresFile?.code).toContain("return $response->toSkirArray();");
   });
@@ -295,6 +299,7 @@ describe("generateLaravelDataFiles", () => {
     const proceduresFile = files.find((file) => file.path === "Admin/SkirProcedures.php");
     const providerFile = files.find((file) => file.path === "Admin/SkirProcedureProvider.php");
     const abstractProceduresFile = files.find((file) => file.path === "Admin/AbstractSkirProcedures.php");
+    const methodEnumFile = files.find((file) => file.path === "Admin/AdminSkirMethod.php");
 
     expect(userFile?.code).toContain("namespace App\\Skir\\Admin;");
     expect(requestFile?.code).toContain("namespace App\\Skir\\Admin;");
@@ -303,6 +308,8 @@ describe("generateLaravelDataFiles", () => {
     expect(proceduresFile?.code).toContain("namespace App\\Skir\\Admin;");
     expect(providerFile?.code).toContain("namespace App\\Skir\\Admin;");
     expect(abstractProceduresFile?.code).toContain("namespace App\\Skir\\Admin;");
+    expect(methodEnumFile?.code).toContain("namespace App\\Skir\\Admin;");
+    expect(methodEnumFile?.code).toContain("enum AdminSkirMethod implements SkirMethodReference");
     expect(methodsFile?.code).toContain("requestType: GetUserRequestData::skirType()");
     expect(methodsFile?.code).toContain("responseType: UserData::skirType()");
     expect(clientFile?.code).toContain("public function getUser(GetUserRequestData $request): UserData");
