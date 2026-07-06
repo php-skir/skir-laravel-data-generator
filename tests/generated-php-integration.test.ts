@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { generateLaravelDataFiles } from "../src/generator.js";
 
 describe("generated PHP", () => {
-  it("round-trips dense JSON through laravel-skir/runtime", () => {
+  it("round-trips dense JSON through php-skir/runtime", () => {
     const projectPath = mkdtempSync(join(tmpdir(), "skir-laravel-data-generator-"));
     const sourcePath = join(projectPath, "src");
     const runtimePath = process.env.SKIR_RUNTIME_PATH ?? resolve("../runtime");
@@ -33,7 +33,7 @@ describe("generated PHP", () => {
             "illuminate/config": "^10.0|^11.0|^12.0|^13.0",
             "illuminate/translation": "^10.0|^11.0|^12.0|^13.0",
             "illuminate/validation": "^10.0|^11.0|^12.0|^13.0",
-            "laravel-skir/runtime": "*",
+            "php-skir/runtime": "*",
             "phpoption/phpoption": "^1.9",
             "spatie/laravel-data": "^4.0",
             "vlucas/phpdotenv": "^5.6",

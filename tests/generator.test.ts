@@ -140,7 +140,7 @@ describe("generateLaravelDataFiles", () => {
 
     const methodFile = files.find((file) => file.path === "SkirMethods.php");
 
-    expect(methodFile?.code).toContain("use LaravelSkir\\Runtime\\MethodDescriptor;");
+    expect(methodFile?.code).toContain("use Skir\\Runtime\\MethodDescriptor;");
     expect(methodFile?.code).toContain("public static function getUser(): MethodDescriptor");
     expect(methodFile?.code).toContain("name: 'GetUser'");
     expect(methodFile?.code).toContain("number: 3180856469");
@@ -187,7 +187,7 @@ describe("generateLaravelDataFiles", () => {
 
     const clientFile = files.find((file) => file.path === "SkirRpcClient.php");
 
-    expect(clientFile?.code).toContain("use LaravelSkir\\Client\\SkirClient;");
+    expect(clientFile?.code).toContain("use Skir\\Client\\SkirClient;");
     expect(clientFile?.code).toContain("final readonly class SkirRpcClient");
     expect(clientFile?.code).toContain("private SkirClient $client,");
     expect(clientFile?.code).toContain("public function getUser(GetUserRequestData $request): UserData");
@@ -242,7 +242,7 @@ describe("generateLaravelDataFiles", () => {
     expect(methodEnumFile?.code).toContain("self::GetUser => SkirMethods::getUser(),");
     expect(proceduresFile?.code).toContain("interface SkirProcedures");
     expect(proceduresFile?.code).toContain("public function getUser(GetUserRequestData $request, SkirContext $context): UserData;");
-    expect(providerFile?.code).toContain("use LaravelSkir\\Server\\ProcedureProvider;");
+    expect(providerFile?.code).toContain("use Skir\\Server\\ProcedureProvider;");
     expect(providerFile?.code).toContain("final readonly class SkirProcedureProvider implements ProcedureProvider");
     expect(providerFile?.code).toContain("private SkirProcedures $procedures,");
     expect(providerFile?.code).toContain("$server->addMethod(SkirMethods::getUser(), function (mixed $request, SkirContext $context): mixed {");
