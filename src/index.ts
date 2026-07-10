@@ -1,19 +1,13 @@
 import { type CodeGenerator } from "skir-internal";
-import { z } from "zod";
 
+import { GeneratorConfig, GENERATOR_MODULE } from "./config.js";
 import { generateLaravelDataFiles } from "./generator.js";
 
-const Config = z.strictObject({
-  namespace: z.string().default("App\\Skir"),
-});
+class LaravelDataGenerator implements CodeGenerator<GeneratorConfig> {
+  readonly id = GENERATOR_MODULE;
+  readonly configType = GeneratorConfig;
 
-type Config = z.infer<typeof Config>;
-
-class LaravelDataGenerator implements CodeGenerator<Config> {
-  readonly id = "skir-laravel-data-generator";
-  readonly configType = Config;
-
-  generateCode(input: CodeGenerator.Input<Config>): CodeGenerator.Output {
+  generateCode(input: CodeGenerator.Input<GeneratorConfig>): CodeGenerator.Output {
     return {
       files: generateLaravelDataFiles(input),
     };

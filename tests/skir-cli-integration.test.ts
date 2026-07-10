@@ -34,7 +34,7 @@ describe("skir CLI integration", () => {
         `  - mod: ${pathToFileURL(generatorPath).href}`,
         "    outDir: generated/skirout",
         "    config:",
-        '      namespace: "App\\\\Skir"',
+        '      namespace: "Skir"',
         "",
       ].join("\n"),
     );
@@ -109,7 +109,6 @@ describe("skir CLI integration", () => {
           },
           autoload: {
             "psr-4": {
-              "App\\Skir\\": "generated/skirout/",
               "Skir\\Client\\": "stub-client/Skir/Client/",
             },
           },
@@ -232,11 +231,11 @@ $validator = new ValidatorFactory($translator, $container);
 $container->instance('validator', $validator);
 $container->alias('validator', \\Illuminate\\Contracts\\Validation\\Factory::class);
 
-use App\\Skir\\Admin\\SkirMethods;
-use App\\Skir\\Admin\\SkirRpcClient;
-use App\\Skir\\Admin\\SubscriptionStatusData;
-use App\\Skir\\Admin\\UsersUserData;
-use App\\Skir\\Common\\AddressData;
+use Skir\\Admin\\SkirMethods;
+use Skir\\Admin\\SkirRpcClient;
+use Skir\\Admin\\SubscriptionStatusData;
+use Skir\\Admin\\UsersUserData;
+use Skir\\Common\\AddressData;
 use Skir\\Client\\SkirClient as TransportSkirClient;
 
 $user = new UsersUserData(
@@ -297,6 +296,28 @@ if (! $rpcUser instanceof UsersUserData || $rpcUser->name !== 'John Doe') {
       stdio: "pipe",
     });
 
+    execFileSync(
+      "node",
+      [
+        resolve("dist/cli.js"),
+        "configure-composer",
+        "--root",
+        projectPath,
+        "--mod",
+        pathToFileURL(generatorPath).href,
+      ],
+      { cwd: resolve("."), stdio: "pipe" },
+    );
+
+    expect(JSON.parse(readFileSync(join(projectPath, "composer.json"), "utf8")))
+      .toMatchObject({
+        autoload: {
+          "psr-4": {
+            "Skir\\": "generated/skirout/",
+          },
+        },
+      });
+
     const generatedFiles = [
       join(generatedPath, "Admin", "AbstractSkirProcedures.php"),
       join(generatedPath, "Admin", "UsersUserData.php"),
@@ -322,11 +343,11 @@ if (! $rpcUser instanceof UsersUserData || $rpcUser->name !== 'John Doe') {
     const providerCode = readFileSync(join(generatedPath, "Admin", "SkirProcedureProvider.php"), "utf8");
     const clientCode = readFileSync(join(generatedPath, "Admin", "SkirRpcClient.php"), "utf8");
 
-    expect(userCode).toContain("use App\\Skir\\Common\\AddressData;");
-    expect(userCode).not.toContain("\\App\\Skir\\Common\\AddressData");
+    expect(userCode).toContain("use Skir\\Common\\AddressData;");
+    expect(userCode).not.toContain("\\Skir\\Common\\AddressData");
     expect(methodsCode).toContain("requestType: UsersUserData::skirType()");
     expect(methodsCode).toContain("responseType: UsersUserData::skirType()");
-    expect(providerCode).toContain("namespace App\\Skir\\Admin;");
+    expect(providerCode).toContain("namespace Skir\\Admin;");
     expect(clientCode).toContain("public function getUser(UsersUserData $request): UsersUserData");
 
     if (existsSync(join(projectPath, "vendor", "autoload.php"))) {

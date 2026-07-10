@@ -30,6 +30,9 @@
     ".": "./dist/index.js"
   },
   "types": "./dist/index.d.ts",
+  "bin": {
+    "skir-laravel-data-generator": "./dist/cli.js"
+  },
   "files": [
     "dist"
   ],
@@ -41,7 +44,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "jsonc-parser": "^3.3.1",
     "skir-internal": "^0.2.21",
+    "yaml": "^2.9.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
