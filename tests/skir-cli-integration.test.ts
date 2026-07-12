@@ -338,6 +338,32 @@ if (! $rpcUser instanceof UsersUserData || $rpcUser->name !== 'John Doe') {
 
     expect(existsSync(join(generatedPath, "Admin", "UserData.php"))).toBe(false);
 
+    const manifestPath = join(generatedPath, "skir-server-manifest.json");
+
+    expect(existsSync(manifestPath)).toBe(true);
+
+    expect(JSON.parse(readFileSync(manifestPath, "utf8"))).toEqual({
+      version: 1,
+      generator: "skir-laravel-data-generator",
+      modules: [
+        {
+          name: "Admin",
+          methodEnum: "Skir\\Admin\\AdminSkirMethod",
+          methods: [
+            {
+              name: "GetUser",
+              enumCase: "GetUser",
+              phpMethod: "getUser",
+              requestType: "Skir\\Admin\\UsersUserData",
+              requestClass: "Skir\\Admin\\UsersUserData",
+              responseType: "Skir\\Admin\\UsersUserData",
+              responseClass: "Skir\\Admin\\UsersUserData",
+            },
+          ],
+        },
+      ],
+    });
+
     const userCode = readFileSync(join(generatedPath, "Admin", "UsersUserData.php"), "utf8");
     const methodsCode = readFileSync(join(generatedPath, "Admin", "SkirMethods.php"), "utf8");
     const providerCode = readFileSync(join(generatedPath, "Admin", "SkirProcedureProvider.php"), "utf8");

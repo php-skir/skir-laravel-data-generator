@@ -112,13 +112,38 @@ describe("generated PHP", () => {
       ],
     });
 
-    for (const file of files) {
+    for (const file of files.filter((file) => file.path.endsWith(".php"))) {
       const filePath = join(sourcePath, file.path);
 
       mkdirSync(dirname(filePath), { recursive: true });
       writeFileSync(filePath, file.code);
       execFileSync("php", ["-l", filePath], { stdio: "pipe" });
     }
+
+    const manifestFile = files.find((file) => file.path === "skir-server-manifest.json");
+
+    expect(manifestFile).toBeDefined();
+    expect(JSON.parse(manifestFile?.code ?? "")).toEqual({
+      version: 1,
+      generator: "skir-laravel-data-generator",
+      modules: [
+        {
+          name: "Root",
+          methodEnum: "App\\Skir\\SkirMethod",
+          methods: [
+            {
+              name: "GetUser",
+              enumCase: "GetUser",
+              phpMethod: "getUser",
+              requestType: "App\\Skir\\UserData",
+              requestClass: "App\\Skir\\UserData",
+              responseType: "App\\Skir\\UserData",
+              responseClass: "App\\Skir\\UserData",
+            },
+          ],
+        },
+      ],
+    });
 
     writeFileSync(
       join(projectPath, "verify.php"),
@@ -306,6 +331,7 @@ if ($method->name !== 'GetUser' || $method->number !== 3180856469) {
       "SkirRpcClient.php",
       "SubscriptionStatusData.php",
       "UserData.php",
+      "skir-server-manifest.json",
     ]);
   }, 180_000);
 });

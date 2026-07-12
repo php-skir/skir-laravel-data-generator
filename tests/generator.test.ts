@@ -94,9 +94,9 @@ describe("generateLaravelDataFiles", () => {
 
     expect(files.find((file) => file.path === "Health/HealthRequestData.php")?.code)
       .toContain("namespace Skir\\Health;");
-    expect(files).toHaveLength(8);
+    expect(files).toHaveLength(9);
 
-    for (const file of files) {
+    for (const file of files.filter((file) => file.path.endsWith(".php"))) {
       expect(file.code).toContain(`declare(strict_types=1);\n\n${banner}\n\nnamespace Skir\\Health;`);
       expect(file.code.match(/DO NOT EDIT/g)).toHaveLength(1);
     }
@@ -125,7 +125,7 @@ describe("generateLaravelDataFiles", () => {
       ],
     });
 
-    expect(files).toHaveLength(1);
+    expect(files).toHaveLength(2);
     expect(files[0]?.path).toBe("UserData.php");
     expect(files[0]?.code).toContain("namespace App\\Skir;");
     expect(files[0]?.code).toContain("use Spatie\\LaravelData\\Data;");
@@ -186,7 +186,7 @@ describe("generateLaravelDataFiles", () => {
       ],
     });
 
-    expect(files).toHaveLength(1);
+    expect(files).toHaveLength(2);
     expect(files[0]?.path).toBe("SubscriptionStatusData.php");
     expect(files[0]?.code).toContain("final readonly class SubscriptionStatusData");
     expect(files[0]?.code).toContain("public static function free(): self");
@@ -245,6 +245,204 @@ describe("generateLaravelDataFiles", () => {
     expect(methodFile?.code).toContain("number: 3180856469");
     expect(methodFile?.code).toContain("requestType: GetUserRequestData::skirType()");
     expect(methodFile?.code).toContain("responseType: UserData::skirType()");
+  });
+
+  it("generates the Laravel Data server manifest", () => {
+    const files = generateLaravelDataFiles({
+      config: {
+        namespace: "Skir",
+      },
+      modules: [
+        {
+          path: "admin/users.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "GetUser",
+              number: 1,
+              requestType: { kind: "record", name: "GetUserRequest" },
+              responseType: { kind: "record", name: "GetUserResponse" },
+            },
+          ],
+        },
+        {
+          path: "health.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "CheckHealth",
+              number: 2,
+              requestType: { kind: "string" },
+              responseType: {
+                kind: "optional",
+                other: { kind: "int64" },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    const manifestFile = files.find((file) => file.path === "skir-server-manifest.json");
+
+    expect(manifestFile).toBeDefined();
+    expect(JSON.parse(manifestFile?.code ?? "")).toEqual({
+      version: 1,
+      generator: "skir-laravel-data-generator",
+      modules: [
+        {
+          name: "Admin",
+          methodEnum: "Skir\\Admin\\AdminSkirMethod",
+          methods: [
+            {
+              name: "GetUser",
+              enumCase: "GetUser",
+              phpMethod: "getUser",
+              requestType: "Skir\\Admin\\GetUserRequestData",
+              requestClass: "Skir\\Admin\\GetUserRequestData",
+              responseType: "Skir\\Admin\\GetUserResponseData",
+              responseClass: "Skir\\Admin\\GetUserResponseData",
+            },
+          ],
+        },
+        {
+          name: "Root",
+          methodEnum: "Skir\\SkirMethod",
+          methods: [
+            {
+              name: "CheckHealth",
+              enumCase: "CheckHealth",
+              phpMethod: "checkHealth",
+              requestType: "string",
+              requestClass: null,
+              responseType: "int|string|null",
+              responseClass: null,
+            },
+          ],
+        },
+      ],
+    });
+    expect(manifestFile?.code.endsWith("\n")).toBe(true);
+    expect(files.at(-1)?.path).toBe("skir-server-manifest.json");
+  });
+
+  it("uses record locations for cross-module, nested, and optional manifest types", () => {
+    const addressRecord = {
+      kind: "record",
+      key: "common/address.skir:0",
+      recordType: "struct" as const,
+      name: "Address",
+      fields: [],
+    };
+    const envelopeRecord = {
+      kind: "record",
+      key: "admin/envelope.skir:0",
+      recordType: "struct" as const,
+      name: "Envelope",
+      fields: [],
+    };
+    const metadataRecord = {
+      kind: "record",
+      key: "admin/envelope.skir:1",
+      recordType: "struct" as const,
+      name: "Metadata",
+      fields: [],
+    };
+    const files = generateLaravelDataFiles({
+      config: {
+        namespace: "Skir",
+      },
+      recordMap: new Map([
+        [
+          addressRecord.key,
+          {
+            kind: "record-location",
+            record: addressRecord,
+            recordAncestors: [addressRecord],
+            modulePath: "common/address.skir",
+          },
+        ],
+        [
+          metadataRecord.key,
+          {
+            kind: "record-location",
+            record: metadataRecord,
+            recordAncestors: [envelopeRecord, metadataRecord],
+            modulePath: "admin/envelope.skir",
+          },
+        ],
+      ]),
+      modules: [
+        {
+          path: "admin/service.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "ResolveAddress",
+              number: 1,
+              requestType: {
+                kind: "record",
+                key: addressRecord.key,
+                nameParts: [{ token: { text: "Address" } }],
+              },
+              responseType: {
+                kind: "record",
+                key: metadataRecord.key,
+                nameParts: [
+                  { token: { text: "Envelope" } },
+                  { token: { text: "Metadata" } },
+                ],
+              },
+            },
+            {
+              kind: "method",
+              name: "MaybeResolveAddress",
+              number: 2,
+              requestType: {
+                kind: "optional",
+                other: {
+                  kind: "record",
+                  key: addressRecord.key,
+                  nameParts: [{ token: { text: "Address" } }],
+                },
+              },
+              responseType: { kind: "bool" },
+            },
+          ],
+        },
+      ],
+    });
+    const manifestFile = files.find((file) => file.path === "skir-server-manifest.json");
+
+    expect(JSON.parse(manifestFile?.code ?? "")).toEqual({
+      version: 1,
+      generator: "skir-laravel-data-generator",
+      modules: [
+        {
+          name: "Admin",
+          methodEnum: "Skir\\Admin\\AdminSkirMethod",
+          methods: [
+            {
+              name: "ResolveAddress",
+              enumCase: "ResolveAddress",
+              phpMethod: "resolveAddress",
+              requestType: "Skir\\Common\\AddressData",
+              requestClass: "Skir\\Common\\AddressData",
+              responseType: "Skir\\Admin\\EnvelopeMetadataData",
+              responseClass: "Skir\\Admin\\EnvelopeMetadataData",
+            },
+            {
+              name: "MaybeResolveAddress",
+              enumCase: "MaybeResolveAddress",
+              phpMethod: "maybeResolveAddress",
+              requestType: "?Skir\\Common\\AddressData",
+              requestClass: "Skir\\Common\\AddressData",
+              responseType: "bool",
+              responseClass: null,
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it("generates a typed SkirRPC client for SkirRPC methods", () => {
