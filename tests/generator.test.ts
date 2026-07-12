@@ -255,6 +255,13 @@ describe("generateLaravelDataFiles", () => {
       modules: [
         {
           path: "admin/users.skir",
+          records: [
+            {
+              recordType: "enum",
+              name: "UserScope",
+              fields: [{ kind: "field", name: "all", number: 0 }],
+            },
+          ],
           methods: [
             {
               kind: "method",
@@ -262,6 +269,16 @@ describe("generateLaravelDataFiles", () => {
               number: 1,
               requestType: { kind: "record", name: "GetUserRequest" },
               responseType: { kind: "record", name: "GetUserResponse" },
+            },
+            {
+              kind: "method",
+              name: "FindUsers",
+              number: 3,
+              requestType: {
+                kind: "optional",
+                other: { kind: "record", name: "UserScope", recordType: "enum" },
+              },
+              responseType: { kind: "record", name: "UserScope", recordType: "enum" },
             },
           ],
         },
@@ -301,6 +318,15 @@ describe("generateLaravelDataFiles", () => {
               requestClass: "Skir\\Admin\\GetUserRequestData",
               responseType: "Skir\\Admin\\GetUserResponseData",
               responseClass: "Skir\\Admin\\GetUserResponseData",
+            },
+            {
+              name: "FindUsers",
+              enumCase: "FindUsers",
+              phpMethod: "findUsers",
+              requestType: "?Skir\\Admin\\UserScopeData",
+              requestClass: null,
+              responseType: "Skir\\Admin\\UserScopeData",
+              responseClass: "Skir\\Admin\\UserScopeData",
             },
           ],
         },
@@ -347,6 +373,13 @@ describe("generateLaravelDataFiles", () => {
       name: "Metadata",
       fields: [],
     };
+    const scopeRecord = {
+      kind: "record",
+      key: "common/scope.skir:0",
+      recordType: "enum" as const,
+      name: "Scope",
+      fields: [],
+    };
     const files = generateLaravelDataFiles({
       config: {
         namespace: "Skir",
@@ -368,6 +401,15 @@ describe("generateLaravelDataFiles", () => {
             record: metadataRecord,
             recordAncestors: [envelopeRecord, metadataRecord],
             modulePath: "admin/envelope.skir",
+          },
+        ],
+        [
+          scopeRecord.key,
+          {
+            kind: "record-location",
+            record: scopeRecord,
+            recordAncestors: [scopeRecord],
+            modulePath: "common/scope.skir",
           },
         ],
       ]),
@@ -407,6 +449,17 @@ describe("generateLaravelDataFiles", () => {
               },
               responseType: { kind: "bool" },
             },
+            {
+              kind: "method",
+              name: "FindByScope",
+              number: 3,
+              requestType: {
+                kind: "record",
+                key: scopeRecord.key,
+                nameParts: [{ token: { text: "Scope" } }],
+              },
+              responseType: { kind: "bool" },
+            },
           ],
         },
       ],
@@ -436,6 +489,15 @@ describe("generateLaravelDataFiles", () => {
               phpMethod: "maybeResolveAddress",
               requestType: "?Skir\\Common\\AddressData",
               requestClass: "Skir\\Common\\AddressData",
+              responseType: "bool",
+              responseClass: null,
+            },
+            {
+              name: "FindByScope",
+              enumCase: "FindByScope",
+              phpMethod: "findByScope",
+              requestType: "Skir\\Common\\ScopeData",
+              requestClass: null,
               responseType: "bool",
               responseClass: null,
             },
