@@ -128,7 +128,7 @@ describe("generated PHP", () => {
       generator: "skir-laravel-data-generator",
       modules: [
         {
-          name: "Root",
+          name: "_Root",
           methodEnum: "App\\Skir\\SkirMethod",
           methods: [
             {

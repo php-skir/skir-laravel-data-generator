@@ -331,7 +331,7 @@ describe("generateLaravelDataFiles", () => {
           ],
         },
         {
-          name: "Root",
+          name: "_Root",
           methodEnum: "Skir\\SkirMethod",
           methods: [
             {
@@ -349,6 +349,135 @@ describe("generateLaravelDataFiles", () => {
     });
     expect(manifestFile?.code.endsWith("\n")).toBe(true);
     expect(files.at(-1)?.path).toBe("skir-server-manifest.json");
+  });
+
+  it.each([
+    ["user-profile/service.skir", "UserProfile", "Skir\\UserProfile", "UserProfile"],
+    ["admin/users/service.skir", "Admin.Users", "Skir\\Admin\\Users", "Admin/Users"],
+    ["admin.users/service.skir", "AdminUsers", "Skir\\AdminUsers", "AdminUsers"],
+    ["service.skir", "_Root", "Skir", ""],
+    ["Root/service.skir", "Root", "Skir\\Root", "Root"],
+  ])(
+    "normalizes manifest module identity for %s",
+    (modulePath, moduleName, namespace, outputDirectory) => {
+      const files = generateLaravelDataFiles({
+        modules: [
+          {
+            path: modulePath,
+            records: [
+              {
+                kind: "struct",
+                name: "LookupRequest",
+                fields: [],
+              },
+              {
+                kind: "struct",
+                name: "LookupResponse",
+                fields: [],
+              },
+            ],
+            methods: [
+              {
+                kind: "method",
+                name: "Lookup",
+                number: 1,
+                requestType: { kind: "record", name: "LookupRequest" },
+                responseType: { kind: "record", name: "LookupResponse" },
+              },
+            ],
+          },
+        ],
+      });
+      const manifestFile = files.find((file) => file.path === "skir-server-manifest.json");
+      const manifest = JSON.parse(manifestFile?.code ?? "");
+      const module = manifest.modules[0];
+      const expectedPrefix = outputDirectory === "" ? "" : `${outputDirectory}/`;
+
+      expect(module.name).toBe(moduleName);
+      expect(module.methods.map((method: { name: string }) => `${module.name}.${method.name}`))
+        .toEqual([`${moduleName}.Lookup`]);
+      expect(module.methodEnum).toMatch(new RegExp(`^${namespace.replaceAll("\\", "\\\\")}\\\\`));
+      expect(module.methods[0].requestType).toBe(`${namespace}\\LookupRequestData`);
+      expect(module.methods[0].responseType).toBe(`${namespace}\\LookupResponseData`);
+      expect(files.some((file) => file.path === `${expectedPrefix}LookupRequestData.php`)).toBe(true);
+      expect(files.some((file) => file.path === `${expectedPrefix}LookupResponseData.php`)).toBe(true);
+    },
+  );
+
+  it("rejects module directory normalization collisions instead of merging methods", () => {
+    expect(() => generateLaravelDataFiles({
+      modules: [
+        {
+          path: "user-profile/users.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "GetUser",
+              number: 1,
+            },
+          ],
+        },
+        {
+          path: "user_profile/profiles.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "GetProfile",
+              number: 2,
+            },
+          ],
+        },
+      ],
+    })).toThrow(/module directories .*user-profile.*user_profile.*normalize.*UserProfile/i);
+  });
+
+  it("rejects module directory collisions using PHP namespace case semantics", () => {
+    expect(() => generateLaravelDataFiles({
+      modules: [
+        {
+          path: "admin/users/service.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "GetUser",
+              number: 1,
+            },
+          ],
+        },
+        {
+          path: "ADMIN/users/audit.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "AuditUser",
+              number: 2,
+            },
+          ],
+        },
+      ],
+    })).toThrow(/module directories .*admin\/users.*ADMIN\/users.*normalize.*Admin\.Users/i);
+  });
+
+  it("cannot normalize a module directory to the reserved root identity", () => {
+    const files = generateLaravelDataFiles({
+      modules: [
+        {
+          path: "_root/service.skir",
+          methods: [
+            {
+              kind: "method",
+              name: "Lookup",
+              number: 1,
+            },
+          ],
+        },
+      ],
+    });
+    const manifestFile = files.find((file) => file.path === "skir-server-manifest.json");
+    const manifest = JSON.parse(manifestFile?.code ?? "");
+
+    expect(manifest.modules[0].name).toBe("Root");
+    expect(manifest.modules[0].name).not.toBe("_Root");
   });
 
   it("uses record locations for cross-module, nested, and optional manifest types", () => {

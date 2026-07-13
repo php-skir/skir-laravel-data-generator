@@ -115,6 +115,7 @@ interface ImportRegistry {
 
 export function generateLaravelDataFiles(input: PhpGeneratorInput): GeneratedFile[] {
   const { namespace } = GeneratorConfig.parse(input.config ?? {});
+  validateModuleDirectoryNormalization(namespace, input.modules);
   const classNames = buildClassNameRegistry(namespace, input.modules);
   const methodGroups = new Map<string, { context: ModuleOutputContext; methods: SkirMethod[] }>();
   const recordFiles: GeneratedFile[] = [];
@@ -172,7 +173,7 @@ function generateServerManifestModule(
   methods: readonly SkirMethod[],
 ): ServerManifestModule {
   return {
-    name: context.pathPrefix === "" ? "Root" : context.pathPrefix.split("/").join("."),
+    name: moduleIdentity(context),
     methodEnum: `${context.namespace}\\${methodEnumClassName(context)}`,
     methods: methods.map((method) => generateServerManifestMethod(context, method)),
   };
@@ -1351,11 +1352,50 @@ function outputContextForModule(rootNamespace: string, module: SkirModule, recor
   return outputContextForModulePath(rootNamespace, module.path, recordMap, classNames);
 }
 
+function validateModuleDirectoryNormalization(rootNamespace: string, modules: readonly SkirModule[]): void {
+  const moduleDirectoriesByNormalizedPath = new Map<string, {
+    readonly sourceDirectory: string;
+    readonly normalizedPath: string;
+  }>();
+
+  for (const module of modules) {
+    const sourceDirectory = module.path.split("/").slice(0, -1).join("/");
+    const normalizedPath = outputContextForModulePath(rootNamespace, module.path).pathPrefix;
+    const normalizedPathKey = normalizedPath.toLowerCase();
+    const existingModuleDirectory = moduleDirectoriesByNormalizedPath.get(normalizedPathKey);
+
+    if (existingModuleDirectory === undefined) {
+      moduleDirectoriesByNormalizedPath.set(normalizedPathKey, {
+        sourceDirectory,
+        normalizedPath,
+      });
+
+      continue;
+    }
+
+    if (existingModuleDirectory.sourceDirectory !== sourceDirectory) {
+      const normalizedModule = moduleIdentityFromPath(existingModuleDirectory.normalizedPath);
+
+      throw new Error(
+        `Skir module directories ${JSON.stringify(existingModuleDirectory.sourceDirectory)} and ${JSON.stringify(sourceDirectory)} both normalize to PHP module ${JSON.stringify(normalizedModule)} under PHP's case-insensitive namespace rules.`,
+      );
+    }
+  }
+}
+
+function moduleIdentity(context: ModuleOutputContext): string {
+  return moduleIdentityFromPath(context.pathPrefix);
+}
+
+function moduleIdentityFromPath(pathPrefix: string): string {
+  return pathPrefix === "" ? "_Root" : pathPrefix.split("/").join(".");
+}
+
 function outputContextForModulePath(rootNamespace: string, modulePath: string, recordMap?: ReadonlyMap<string, SkirRecordLocation>, classNames?: ClassNameRegistry): ModuleOutputContext {
   const directoryParts = modulePath
     .split("/")
     .slice(0, -1)
-    .map((part) => toClassName(part))
+    .map((part) => toPhpNamespaceSegment(part))
     .filter((part) => part !== "");
 
   if (directoryParts.length === 0) {
@@ -1375,6 +1415,10 @@ function outputContextForModulePath(rootNamespace: string, modulePath: string, r
     recordMap,
     classNames,
   };
+}
+
+function toPhpNamespaceSegment(name: string): string {
+  return toClassName(name.replace(/[^A-Za-z0-9]+/g, "_"));
 }
 
 function outputPath(context: ModuleOutputContext, fileName: string): string {

@@ -197,6 +197,8 @@ app/Skir/skirout/skir-server-manifest.json
 
 The manifest is consumed by the [`php-skir/server`](https://github.com/php-skir/server) Laravel scaffolding commands. Keep the manifest path in the server package configuration aligned with the generator `outDir`.
 
+Each manifest module name is also its method ID prefix. Directory segments use the same normalization as their generated PHP namespace: `user-profile` becomes `UserProfile`, `admin/users` becomes `Admin.Users`, and a literal `admin.users` segment becomes `AdminUsers`. Root-level methods use the reserved `_Root` module name, while a `Root` directory remains `Root`. Generation fails when distinct directory names normalize to the same module identity.
+
 The current schema version is `1`:
 
 ```json
