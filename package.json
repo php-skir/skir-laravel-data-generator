@@ -41,7 +41,7 @@
     "prepack": "npm run build",
     "pack:dry-run": "npm pack --dry-run --cache .npm-cache",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json"
   },
   "dependencies": {
     "jsonc-parser": "^3.3.1",

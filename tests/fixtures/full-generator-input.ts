@@ -11,6 +11,7 @@ import type {
   PrimitiveType,
   Record as ProducerRecord,
   RecordLocation,
+  Removed,
   ResolvedRecordRef,
   ResolvedType,
   Token,
@@ -60,25 +61,39 @@ const emptyDoc: Doc = {
   pieces: [],
 };
 
-function tokenAt(modulePath: ModulePath, text: string, occurrence = 0): Token {
+function tokenOnLine(
+  modulePath: ModulePath,
+  lineNumber: number,
+  text: string,
+  occurrence = 0,
+): Token {
   const sourceCode = moduleSources[modulePath];
-  let position = -1;
+  const lines = sourceCode.split("\n");
+  const line = lines[lineNumber];
+
+  if (line === undefined) {
+    throw new Error(`Line ${lineNumber} not found in ${modulePath}.`);
+  }
+
+  let colNumber = -1;
+  let searchStart = 0;
 
   for (let index = 0; index <= occurrence; index += 1) {
-    position = sourceCode.indexOf(text, position + 1);
+    colNumber = line.indexOf(text, searchStart);
+
+    if (colNumber < 0) {
+      throw new Error(
+        `Token ${JSON.stringify(text)} occurrence ${occurrence} not found on ${modulePath}:${lineNumber + 1}.`,
+      );
+    }
+
+    searchStart = colNumber + text.length;
   }
 
-  if (position < 0) {
-    throw new Error(`Token ${JSON.stringify(text)} not found in ${modulePath}.`);
-  }
-
-  const linePosition = sourceCode.lastIndexOf("\n", position - 1) + 1;
-  const nextLinePosition = sourceCode.indexOf("\n", position);
-  const line = sourceCode.slice(
-    linePosition,
-    nextLinePosition < 0 ? sourceCode.length : nextLinePosition,
-  );
-  const lineNumber = sourceCode.slice(0, linePosition).split("\n").length - 1;
+  const linePosition = lines
+    .slice(0, lineNumber)
+    .reduce((position, sourceLine) => position + sourceLine.length + 1, 0);
+  const position = linePosition + colNumber;
 
   return {
     text,
@@ -90,7 +105,7 @@ function tokenAt(modulePath: ModulePath, text: string, occurrence = 0): Token {
       position: linePosition,
       modulePath,
     },
-    colNumber: position - linePosition,
+    colNumber,
   };
 }
 
@@ -177,13 +192,13 @@ const postalCodeType = primitive("string");
 const postalCodesType = array(postalCodeType);
 const unresolvedPostalCodesType = unresolvedArray(postalCodeType);
 const cityField = field(
-  tokenAt("common/address.skir", "city"),
+  tokenOnLine("common/address.skir", 1, "city"),
   0,
   cityType,
   cityType,
 );
 const postalCodesField = field(
-  tokenAt("common/address.skir", "postal_codes"),
+  tokenOnLine("common/address.skir", 2, "postal_codes"),
   1,
   unresolvedPostalCodesType,
   postalCodesType,
@@ -192,7 +207,7 @@ const postalCodesField = field(
 const address: ProducerRecord = {
   kind: "record",
   key: "address-key",
-  name: tokenAt("common/address.skir", "Address"),
+  name: tokenOnLine("common/address.skir", 0, "Address"),
   recordType: "struct",
   doc: emptyDoc,
   nameToDeclaration: {
@@ -209,8 +224,8 @@ const address: ProducerRecord = {
 };
 
 const userIdType = primitive("int32");
-const addressTypeToken = tokenAt("admin/users.skir", "Address", 1);
-const previousAddressTypeToken = tokenAt("admin/users.skir", "Address", 2);
+const addressTypeToken = tokenOnLine("admin/users.skir", 5, "Address");
+const previousAddressTypeToken = tokenOnLine("admin/users.skir", 6, "Address");
 const addressType = resolvedRecordReference(
   "address-key",
   "struct",
@@ -234,40 +249,45 @@ const matrixIntType = primitive("int32");
 const matrixType = array(array(matrixIntType));
 const unresolvedMatrixType = unresolvedArray(unresolvedArray(matrixIntType));
 const userIdField = field(
-  tokenAt("admin/users.skir", "user_id"),
+  tokenOnLine("admin/users.skir", 3, "user_id"),
   0,
   userIdType,
   userIdType,
 );
 const addressField = field(
-  tokenAt("admin/users.skir", "address"),
+  tokenOnLine("admin/users.skir", 5, "address"),
   2,
   unresolvedAddressType,
   addressType,
 );
 const previousAddressesField = field(
-  tokenAt("admin/users.skir", "previous_addresses"),
+  tokenOnLine("admin/users.skir", 6, "previous_addresses"),
   3,
   unresolvedPreviousAddressesType,
   previousAddressesType,
 );
 const nicknameField = field(
-  tokenAt("admin/users.skir", "nickname"),
+  tokenOnLine("admin/users.skir", 7, "nickname"),
   4,
   unresolvedNicknameType,
   nicknameType,
 );
 const matrixField = field(
-  tokenAt("admin/users.skir", "matrix"),
+  tokenOnLine("admin/users.skir", 8, "matrix"),
   5,
   unresolvedMatrixType,
   matrixType,
 );
+const removedUserField: Removed = {
+  kind: "removed",
+  removedToken: tokenOnLine("admin/users.skir", 4, "removed"),
+  numbers: [1],
+};
 
 const user: ProducerRecord = {
   kind: "record",
   key: "admin-user-key",
-  name: tokenAt("admin/users.skir", "User"),
+  name: tokenOnLine("admin/users.skir", 2, "User"),
   recordType: "struct",
   doc: emptyDoc,
   nameToDeclaration: {
@@ -279,6 +299,7 @@ const user: ProducerRecord = {
   },
   declarations: [
     userIdField,
+    removedUserField,
     addressField,
     previousAddressesField,
     nicknameField,
@@ -300,13 +321,13 @@ const user: ProducerRecord = {
 
 const premiumSinceType = primitive("timestamp");
 const freeField = field(
-  tokenAt("admin/users.skir", "free"),
+  tokenOnLine("admin/users.skir", 12, "free"),
   0,
   undefined,
   undefined,
 );
 const premiumSinceField = field(
-  tokenAt("admin/users.skir", "premium_since"),
+  tokenOnLine("admin/users.skir", 13, "premium_since"),
   1,
   premiumSinceType,
   premiumSinceType,
@@ -315,7 +336,7 @@ const premiumSinceField = field(
 const subscriptionStatus: ProducerRecord = {
   kind: "record",
   key: "subscription-status-key",
-  name: tokenAt("admin/users.skir", "SubscriptionStatus"),
+  name: tokenOnLine("admin/users.skir", 11, "SubscriptionStatus"),
   recordType: "enum",
   doc: emptyDoc,
   nameToDeclaration: {
@@ -331,14 +352,14 @@ const subscriptionStatus: ProducerRecord = {
   numSlotsInclRemovedNumbers: 0,
 };
 
-const getUserRequestToken = tokenAt("admin/users.skir", "User", 2);
-const getUserResponseToken = tokenAt("admin/users.skir", "User", 3);
+const getUserRequestToken = tokenOnLine("admin/users.skir", 16, "User", 1);
+const getUserResponseToken = tokenOnLine("admin/users.skir", 16, "User", 2);
 const findUsersRequestType = optional(primitive("string"));
 const unresolvedFindUsersRequestType = unresolvedOptional(primitive("string"));
-const findUsersResponseToken = tokenAt("admin/users.skir", "User", 5);
+const findUsersResponseToken = tokenOnLine("admin/users.skir", 17, "User", 1);
 const getUserMethod: Method = {
   kind: "method",
-  name: tokenAt("admin/users.skir", "GetUser"),
+  name: tokenOnLine("admin/users.skir", 16, "GetUser"),
   doc: emptyDoc,
   unresolvedRequestType: unresolvedRecordReference(getUserRequestToken),
   inlineRequestRecord: undefined,
@@ -360,7 +381,7 @@ const getUserMethod: Method = {
 };
 const findUsersMethod: Method = {
   kind: "method",
-  name: tokenAt("admin/users.skir", "FindUsers"),
+  name: tokenOnLine("admin/users.skir", 17, "FindUsers"),
   doc: emptyDoc,
   unresolvedRequestType: unresolvedFindUsersRequestType,
   inlineRequestRecord: undefined,
@@ -412,15 +433,16 @@ const addressModule: Module = {
   brokenConstants: [],
 };
 
-const importToken = tokenAt("admin/users.skir", "import");
-const importModulePathToken = tokenAt(
+const importToken = tokenOnLine("admin/users.skir", 0, "import");
+const importModulePathToken = tokenOnLine(
   "admin/users.skir",
+  0,
   '"../common/address.skir"',
 );
 const addressImport: Import = {
   kind: "import",
   importToken,
-  importedNames: [tokenAt("admin/users.skir", "Address")],
+  importedNames: [tokenOnLine("admin/users.skir", 0, "Address")],
   modulePath: importModulePathToken,
   range: {
     start: importToken.position,
