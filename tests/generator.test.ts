@@ -257,6 +257,16 @@ describe("generateLaravelDataFiles", () => {
           path: "admin/users.skir",
           records: [
             {
+              kind: "struct",
+              name: "GetUserRequest",
+              fields: [],
+            },
+            {
+              kind: "struct",
+              name: "GetUserResponse",
+              fields: [],
+            },
+            {
               recordType: "enum",
               name: "UserScope",
               fields: [{ kind: "field", name: "all", number: 0 }],
@@ -349,6 +359,10 @@ describe("generateLaravelDataFiles", () => {
     });
     expect(manifestFile?.code.endsWith("\n")).toBe(true);
     expect(files.at(-1)?.path).toBe("skir-server-manifest.json");
+    expect(files.map((file) => file.path)).toEqual(expect.arrayContaining([
+      "Admin/GetUserRequestData.php",
+      "Admin/GetUserResponseData.php",
+    ]));
   });
 
   it.each([
@@ -428,7 +442,9 @@ describe("generateLaravelDataFiles", () => {
           ],
         },
       ],
-    })).toThrow(/module directories .*user-profile.*user_profile.*normalize.*UserProfile/i);
+    })).toThrow(
+      /Module namespace normalization collision: UserProfile is produced by source directories user-profile and user_profile\./u,
+    );
   });
 
   it("rejects module directory collisions using PHP namespace case semantics", () => {
@@ -455,7 +471,9 @@ describe("generateLaravelDataFiles", () => {
           ],
         },
       ],
-    })).toThrow(/module directories .*admin\/users.*ADMIN\/users.*normalize.*Admin\.Users/i);
+    })).toThrow(
+      /Module namespace normalization collision: ADMIN\.Users is produced by source directories admin\/users and ADMIN\/users\./u,
+    );
   });
 
   it("cannot normalize a module directory to the reserved root identity", () => {
