@@ -16,8 +16,10 @@ declare(strict_types=1);
 
 namespace Skir\\Common;
 
+use Skir\\Runtime\\BinaryFormat;
 use Skir\\Runtime\\DenseJson;
 use Skir\\Runtime\\Field;
+use Skir\\Runtime\\ReadableJson;
 use Skir\\Runtime\\Type;
 use Spatie\\LaravelData\\Attributes\\DataCollectionOf;
 use Spatie\\LaravelData\\Attributes\\MapInputName;
@@ -76,6 +78,23 @@ final class AddressData extends Data
     {
         return DenseJson::toJson(self::skirType(), $this->toSkirArray());
     }
+
+    public function toReadableJson(): string
+    {
+        return ReadableJson::toJson(self::skirType(), $this->toSkirArray());
+    }
+
+    public function toBytes(): string
+    {
+        return BinaryFormat::encode(self::skirType(), $this->toSkirArray());
+    }
+
+    public static function fromBytes(string $bytes): AddressData
+    {
+        $data = BinaryFormat::decode(self::skirType(), $bytes);
+
+        return self::makeFromSkirPayload($data);
+    }
 }
 ",
     "path": "Common/AddressData.php",
@@ -94,8 +113,10 @@ declare(strict_types=1);
 
 namespace Skir\\Admin;
 
+use Skir\\Runtime\\BinaryFormat;
 use Skir\\Runtime\\DenseJson;
 use Skir\\Runtime\\Field;
+use Skir\\Runtime\\ReadableJson;
 use Skir\\Runtime\\Type;
 use Spatie\\LaravelData\\Attributes\\DataCollectionOf;
 use Spatie\\LaravelData\\Attributes\\MapInputName;
@@ -170,6 +191,23 @@ final class UserData extends Data
     {
         return DenseJson::toJson(self::skirType(), $this->toSkirArray());
     }
+
+    public function toReadableJson(): string
+    {
+        return ReadableJson::toJson(self::skirType(), $this->toSkirArray());
+    }
+
+    public function toBytes(): string
+    {
+        return BinaryFormat::encode(self::skirType(), $this->toSkirArray());
+    }
+
+    public static function fromBytes(string $bytes): UserData
+    {
+        $data = BinaryFormat::decode(self::skirType(), $bytes);
+
+        return self::makeFromSkirPayload($data);
+    }
 }
 ",
     "path": "Admin/UserData.php",
@@ -188,8 +226,10 @@ declare(strict_types=1);
 
 namespace Skir\\Admin;
 
+use Skir\\Runtime\\BinaryFormat;
 use Skir\\Runtime\\DenseJson;
 use Skir\\Runtime\\EnumValue;
+use Skir\\Runtime\\ReadableJson;
 use Skir\\Runtime\\Type;
 use Skir\\Runtime\\Variant;
 
@@ -255,6 +295,21 @@ final readonly class SubscriptionStatusData
     public static function fromDenseJson(string $json): SubscriptionStatusData
     {
         return new self(DenseJson::fromJson(self::skirType(), $json));
+    }
+
+    public function toReadableJson(): string
+    {
+        return ReadableJson::toJson(self::skirType(), $this->value);
+    }
+
+    public function toBytes(): string
+    {
+        return BinaryFormat::encode(self::skirType(), $this->value);
+    }
+
+    public static function fromBytes(string $bytes): SubscriptionStatusData
+    {
+        return new self(BinaryFormat::decode(self::skirType(), $bytes));
     }
 }
 ",

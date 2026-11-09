@@ -22,19 +22,35 @@ import {
 
 import { GENERATOR_MODULE } from "./config.js";
 
-const LARAVEL_DATA_STRUCT_IMPORTS = [
-  "Skir\\Runtime\\DenseJson",
-  "Skir\\Runtime\\Field",
-  "Skir\\Runtime\\Type",
-  "Spatie\\LaravelData\\Attributes\\DataCollectionOf",
-  "Spatie\\LaravelData\\Attributes\\MapInputName",
-  "Spatie\\LaravelData\\Data",
-] as const;
+const BINARY_FORMAT = "Skir\\Runtime\\BinaryFormat";
+const DENSE_JSON = "Skir\\Runtime\\DenseJson";
+const FIELD = "Skir\\Runtime\\Field";
+const READABLE_JSON = "Skir\\Runtime\\ReadableJson";
+const TYPE = "Skir\\Runtime\\Type";
+const DATA_COLLECTION_OF = "Spatie\\LaravelData\\Attributes\\DataCollectionOf";
+const MAP_INPUT_NAME = "Spatie\\LaravelData\\Attributes\\MapInputName";
 const MERGE_VALIDATION_RULES = "Spatie\\LaravelData\\Attributes\\MergeValidationRules";
+const DATA = "Spatie\\LaravelData\\Data";
+const LARAVEL_DATA_STRUCT_IMPORTS = [
+  BINARY_FORMAT,
+  DENSE_JSON,
+  FIELD,
+  READABLE_JSON,
+  TYPE,
+  DATA_COLLECTION_OF,
+  MAP_INPUT_NAME,
+  DATA,
+] as const;
 const LARAVEL_DATA_VALIDATED_STRUCT_IMPORTS = [
-  ...LARAVEL_DATA_STRUCT_IMPORTS.slice(0, -1),
+  BINARY_FORMAT,
+  DENSE_JSON,
+  FIELD,
+  READABLE_JSON,
+  TYPE,
+  DATA_COLLECTION_OF,
+  MAP_INPUT_NAME,
   MERGE_VALIDATION_RULES,
-  LARAVEL_DATA_STRUCT_IMPORTS.at(-1)!,
+  DATA,
 ] as const;
 
 export class LaravelDataTarget implements PhpTargetAdapter {
@@ -72,12 +88,14 @@ export class LaravelDataTarget implements PhpTargetAdapter {
     }
 
     const className = classNameForRecord(record, context);
-    const denseJson = importClass(context.imports, LARAVEL_DATA_STRUCT_IMPORTS[0]);
-    const fieldClass = importClass(context.imports, LARAVEL_DATA_STRUCT_IMPORTS[1]);
-    const typeClass = importClass(context.imports, LARAVEL_DATA_STRUCT_IMPORTS[2]);
-    const dataCollectionOf = importClass(context.imports, LARAVEL_DATA_STRUCT_IMPORTS[3]);
-    const mapInputName = importClass(context.imports, LARAVEL_DATA_STRUCT_IMPORTS[4]);
-    const dataClass = importClass(context.imports, LARAVEL_DATA_STRUCT_IMPORTS[5]);
+    const binaryFormat = importClass(context.imports, BINARY_FORMAT);
+    const denseJson = importClass(context.imports, DENSE_JSON);
+    const fieldClass = importClass(context.imports, FIELD);
+    const readableJson = importClass(context.imports, READABLE_JSON);
+    const typeClass = importClass(context.imports, TYPE);
+    const dataCollectionOf = importClass(context.imports, DATA_COLLECTION_OF);
+    const mapInputName = importClass(context.imports, MAP_INPUT_NAME);
+    const dataClass = importClass(context.imports, DATA);
     const validationRules = this.validationRulesFor(record);
     const mergeValidationRules = validationRules === undefined
       ? null
@@ -98,6 +116,9 @@ export class LaravelDataTarget implements PhpTargetAdapter {
       this.renderFromSkir(className, denseJson),
       this.renderToSkir(denseJson),
       this.renderToSkirJson(denseJson),
+      this.renderToReadableJson(readableJson),
+      this.renderToBytes(binaryFormat),
+      this.renderFromBytes(className, binaryFormat),
     ].filter((member): member is string => member !== null);
     const body = [
       ...(mergeValidationRules === null ? [] : [`#[${mergeValidationRules}]`]),
@@ -339,6 +360,35 @@ export class LaravelDataTarget implements PhpTargetAdapter {
       "public function toSkirJson(): string",
       "{",
       `    return ${denseJson}::toJson(self::skirType(), $this->toSkirArray());`,
+      "}",
+    ].join("\n");
+  }
+
+  private renderToReadableJson(readableJson: string): string {
+    return [
+      "public function toReadableJson(): string",
+      "{",
+      `    return ${readableJson}::toJson(self::skirType(), $this->toSkirArray());`,
+      "}",
+    ].join("\n");
+  }
+
+  private renderToBytes(binaryFormat: string): string {
+    return [
+      "public function toBytes(): string",
+      "{",
+      `    return ${binaryFormat}::encode(self::skirType(), $this->toSkirArray());`,
+      "}",
+    ].join("\n");
+  }
+
+  private renderFromBytes(className: string, binaryFormat: string): string {
+    return [
+      `public static function fromBytes(string $bytes): ${className}`,
+      "{",
+      `    $data = ${binaryFormat}::decode(self::skirType(), $bytes);`,
+      "",
+      "    return self::makeFromSkirPayload($data);",
       "}",
     ].join("\n");
   }
