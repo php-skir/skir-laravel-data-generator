@@ -8,7 +8,7 @@
 
 Generates Spatie Laravel Data objects, typed RPC clients, and server procedure contracts from Skir schemas.
 
-Generated PHP uses `spatie/laravel-data` for DTO creation and validation and `php-skir/runtime` for dense JSON serialization. Install `php-skir/client` when using generated RPC clients and `php-skir/server` when using generated server contracts.
+Generated PHP uses `spatie/laravel-data` for DTO creation and validation and `php-skir/runtime` for dense JSON, readable JSON, and binary serialization. Install `php-skir/client` when using generated RPC clients and `php-skir/server` when using generated server contracts.
 
 The npm package uses [`@php-skir/generator-core`](https://github.com/php-skir/generator-core) at generation time for schema normalization, PHP naming and imports, shared enum and RPC rendering, server manifests, and Composer configuration. This adapter owns the Laravel Data class representation, hydration, collection metadata, and validation overlays. The generated PHP continues to use its Composer dependencies at runtime.
 
@@ -211,9 +211,20 @@ composer dump-autoload
 The generator emits Laravel Data classes for Skir structs and wrapper classes for Skir enums. Generated classes expose:
 
 - `skirType()` for runtime type descriptors.
-- `fromSkir()` for dense JSON decoding with Laravel Data validation.
+- `fromSkir()` for dense JSON decoding with Laravel Data validation. `fromSkir()` also accepts readable JSON, so there is no separate `fromReadableJson()`.
 - `toSkir()` and `toSkirJson()` for dense JSON payloads.
+- `toReadableJson()` for readable JSON payloads.
+- `toBytes()` and `fromBytes()` for Skir binary payloads. `fromBytes()` hydrates through `makeFromSkirPayload()`, so Laravel Data validation applies just like with `fromSkir()`.
+- `toDenseJson()` and `fromDenseJson()` on generated enum classes, where `fromDenseJson()` also accepts readable JSON. Enums expose the same `toReadableJson()`, `toBytes()` and `fromBytes()` methods as structs.
 - `toSkirValue()` and `fromSkirValue()` on generated enum classes.
+
+```php
+$json = $userData->toReadableJson();
+$userData = UserData::fromSkir($json);
+
+$bytes = $userData->toBytes();
+$userData = UserData::fromBytes($bytes);
+```
 
 SkirRPC methods are emitted in `SkirMethods.php` as `MethodDescriptor` instances. The generator also emits a module-scoped method enum such as `AdminSkirMethod.php` for attribute-based server routing.
 

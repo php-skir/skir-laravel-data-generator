@@ -351,6 +351,9 @@ describe("LaravelDataTarget", () => {
     expect(payload).toContain("public static function fromSkir(string $json): PayloadData");
     expect(payload).toContain("public function toSkir(): array");
     expect(payload).toContain("public function toSkirJson(): string");
+    expect(payload).toContain("public function toReadableJson(): string");
+    expect(payload).toContain("public function toBytes(): string");
+    expect(payload).toContain("public static function fromBytes(string $bytes): PayloadData");
     expect(payload).toContain(
       "'statuses' => $this->statuses === null ? null : array_map(fn (mixed $item): mixed => array_map(fn (mixed $item): mixed => $item->toSkirValue(), $item), $this->statuses)",
     );

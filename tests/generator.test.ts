@@ -176,8 +176,10 @@ declare(strict_types=1);
 
 namespace App\Skir\Admin;
 
+use Skir\Runtime\BinaryFormat;
 use Skir\Runtime\DenseJson;
 use Skir\Runtime\Field;
+use Skir\Runtime\ReadableJson;
 use Skir\Runtime\Type;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Attributes\MapInputName;
@@ -240,6 +242,23 @@ final class CreateUserData extends Data
     public function toSkirJson(): string
     {
         return DenseJson::toJson(self::skirType(), $this->toSkirArray());
+    }
+
+    public function toReadableJson(): string
+    {
+        return ReadableJson::toJson(self::skirType(), $this->toSkirArray());
+    }
+
+    public function toBytes(): string
+    {
+        return BinaryFormat::encode(self::skirType(), $this->toSkirArray());
+    }
+
+    public static function fromBytes(string $bytes): CreateUserData
+    {
+        $data = BinaryFormat::decode(self::skirType(), $bytes);
+
+        return self::makeFromSkirPayload($data);
     }
 }
 `,

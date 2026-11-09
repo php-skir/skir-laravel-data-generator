@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe("generated PHP", () => {
-  it("round-trips dense JSON through php-skir/runtime", () => {
+  it("round-trips dense JSON, readable JSON, and binary through php-skir/runtime", () => {
     const fixture = createComposerFixture(
       "skir-laravel-data-generator-",
       composerFixtures,
@@ -292,6 +292,14 @@ if ($healthCheckRequest->toSkirJson() !== '[]') {
     throw new RuntimeException('Unexpected health check dense JSON: '.$healthCheckRequest->toSkirJson());
 }
 
+if ($healthCheckRequest->toReadableJson() !== '{}') {
+    throw new RuntimeException('Unexpected health check readable JSON: '.$healthCheckRequest->toReadableJson());
+}
+
+if (! HealthCheckRequestData::fromBytes($healthCheckRequest->toBytes()) instanceof HealthCheckRequestData) {
+    throw new RuntimeException('Unexpected health check binary round trip.');
+}
+
 $companyContact = CompanyContactData::makeFromSkirPayload([
     'email' => 'maxim@company.test',
     'contact_label' => 'Primary',
@@ -325,6 +333,18 @@ try {
         'contact_label' => str_repeat('x', 81),
     ]);
     throw new RuntimeException('Expected mapped contact label validation to fail.');
+} catch (ValidationException) {
+}
+
+$bytesDecodedCompanyContact = CompanyContactData::fromBytes($companyContact->toBytes());
+
+if ($bytesDecodedCompanyContact->email !== 'maxim@company.test' || $bytesDecodedCompanyContact->contactLabel !== 'Primary') {
+    throw new RuntimeException('Unexpected binary decoded company contact.');
+}
+
+try {
+    CompanyContactData::fromBytes((new CompanyContactData(email: 'maxim@example.test', contactLabel: 'Primary'))->toBytes());
+    throw new RuntimeException('Expected binary company email validation to fail.');
 } catch (ValidationException) {
 }
 
@@ -411,6 +431,49 @@ if ($decodedUser->toSkirJson() !== $expectedUserJson) {
     throw new RuntimeException('Unexpected decoded user round trip: '.$decodedUser->toSkirJson());
 }
 
+$premiumSince = [
+    'kind' => 'premium_since',
+    'value' => [
+        'unix_millis' => 1743682787000,
+        'formatted' => '2025-04-03T12:19:47.000Z',
+    ],
+];
+$readableUser = json_decode($user->toReadableJson(), true, flags: JSON_THROW_ON_ERROR);
+
+if (
+    $readableUser['user_id'] !== 400
+    || $readableUser['address'] !== ['city' => 'Antwerp', 'postal_codes' => ['2000', '2018']]
+    || $readableUser['subscription_status'] !== $premiumSince
+    || $readableUser['status_history'] !== ['free', $premiumSince]
+    || $readableUser['nullable_previous_addresses'] !== [null, ['city' => 'Bruges', 'postal_codes' => ['8000']]]
+) {
+    throw new RuntimeException('Unexpected user readable JSON: '.$user->toReadableJson());
+}
+
+if (UserData::fromSkir($user->toReadableJson())->toSkirJson() !== $expectedUserJson) {
+    throw new RuntimeException('Unexpected user readable JSON round trip.');
+}
+
+$userBytes = $user->toBytes();
+
+if (! str_starts_with($userBytes, 'skir')) {
+    throw new RuntimeException('Unexpected user binary header: '.bin2hex($userBytes));
+}
+
+$bytesDecodedUser = UserData::fromBytes($userBytes);
+
+if ($bytesDecodedUser->toSkirJson() !== $expectedUserJson) {
+    throw new RuntimeException('Unexpected user binary round trip: '.$bytesDecodedUser->toSkirJson());
+}
+
+if (! $bytesDecodedUser->address instanceof AddressData || ! $bytesDecodedUser->nestedPreviousAddresses[1][0] instanceof AddressData) {
+    throw new RuntimeException('Unexpected binary decoded nested records.');
+}
+
+if ($bytesDecodedUser->nullablePreviousAddresses[0] !== null || $bytesDecodedUser->statusHistory[1]->payload() !== 1743682787000) {
+    throw new RuntimeException('Unexpected binary decoded nullable record or enum array.');
+}
+
 $status = SubscriptionStatusData::premiumSince(1743682787000);
 
 if ($status->toDenseJson() !== '[2,1743682787000]') {
@@ -421,6 +484,24 @@ $decodedStatus = SubscriptionStatusData::fromDenseJson('[2,1743682787000]');
 
 if ($decodedStatus->name() !== 'premium_since' || $decodedStatus->payload() !== 1743682787000) {
     throw new RuntimeException('Unexpected decoded status.');
+}
+
+if (json_decode($status->toReadableJson(), true, flags: JSON_THROW_ON_ERROR) !== $premiumSince) {
+    throw new RuntimeException('Unexpected status readable JSON: '.$status->toReadableJson());
+}
+
+if (SubscriptionStatusData::free()->toReadableJson() !== '"free"') {
+    throw new RuntimeException('Unexpected constant status readable JSON: '.SubscriptionStatusData::free()->toReadableJson());
+}
+
+$bytesDecodedStatus = SubscriptionStatusData::fromBytes($status->toBytes());
+
+if ($bytesDecodedStatus->name() !== 'premium_since' || $bytesDecodedStatus->payload() !== 1743682787000) {
+    throw new RuntimeException('Unexpected binary decoded status.');
+}
+
+if (SubscriptionStatusData::fromBytes(SubscriptionStatusData::free()->toBytes())->name() !== 'free') {
+    throw new RuntimeException('Unexpected binary decoded constant status.');
 }
 
 $method = SkirMethods::getUser();
