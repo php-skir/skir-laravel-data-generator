@@ -16,7 +16,7 @@ The npm package uses [`@php-skir/generator-core`](https://github.com/php-skir/ge
 
 ```bash
 npm install --save-dev skir skir-laravel-data-generator
-composer require php-skir/runtime spatie/laravel-data
+composer require "php-skir/runtime:^0.2.1" spatie/laravel-data
 ```
 
 For generated typed RPC clients:
