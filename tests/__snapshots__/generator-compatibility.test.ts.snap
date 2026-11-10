@@ -38,7 +38,7 @@ final class AddressData extends Data
         return Type::struct([
         Field::value('city', 0, Type::string()),
         Field::value('postal_codes', 1, Type::array(Type::string())),
-        ]);
+        ], recordId: 'common/address.skir:Address');
     }
 
     /** @return array<string, mixed> */
@@ -145,7 +145,7 @@ final class UserData extends Data
         Field::value('previous_addresses', 3, Type::array(AddressData::skirType())),
         Field::value('nickname', 4, Type::optional(Type::string())),
         Field::value('matrix', 5, Type::array(Type::array(Type::int32()))),
-        ]);
+        ], recordId: 'admin/users.skir:User');
     }
 
     /** @return array<string, mixed> */
@@ -252,7 +252,7 @@ final readonly class SubscriptionStatusData
         return Type::enum([
         Variant::constant('free', 0),
         Variant::wrapper('premium_since', 1, Type::timestamp()),
-        ]);
+        ], recordId: 'admin/users.skir:SubscriptionStatus');
     }
 
     public function name(): string
