@@ -205,7 +205,7 @@ final class CreateUserData extends Data
     {
         return Type::struct([
         Field::value('email', 0, Type::string()),
-        ]);
+        ], recordId: 'admin/users.skir:CreateUser');
     }
 
     /** @return array<string, mixed> */
